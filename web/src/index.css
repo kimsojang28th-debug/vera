@@ -147,7 +147,16 @@ input:disabled { background: var(--color-bg); color: var(--color-muted); }
 .event-card-banner-placeholder {
   display: flex; align-items: center; justify-content: center;
   background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
-  color: #fff; font-size: 2rem; font-weight: 700;
+  color: #fff; padding: 18px 22px; text-align: center;
+}
+.event-card-banner-placeholder span {
+  font-size: 1.2rem;
+  font-weight: 700;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 .event-card-body { padding: 14px 16px 18px; }
 .event-card-body h3 { margin: 6px 0 10px; font-size: 1.05rem; }

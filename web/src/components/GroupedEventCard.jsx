@@ -14,7 +14,9 @@ export default function GroupedEventCard({ groupId, groupTitle, events }) {
       {selected.bannerImageUrl ? (
         <img className="event-card-banner" src={selected.bannerImageUrl} alt={groupTitle} />
       ) : (
-        <div className="event-card-banner event-card-banner-placeholder">{groupTitle?.[0] ?? '행'}</div>
+        <div className="event-card-banner event-card-banner-placeholder">
+          <span>{groupTitle || '행사'}</span>
+        </div>
       )}
       <div className="event-card-body">
         <div className={`badge badge-${status.tone}`}>{status.label}</div>

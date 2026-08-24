@@ -9,7 +9,9 @@ export default function EventCard({ event }) {
       {event.bannerImageUrl ? (
         <img className="event-card-banner" src={event.bannerImageUrl} alt={event.title} />
       ) : (
-        <div className="event-card-banner event-card-banner-placeholder">{event.title?.[0] ?? '행'}</div>
+        <div className="event-card-banner event-card-banner-placeholder">
+          <span>{event.title || '행사'}</span>
+        </div>
       )}
       <div className="event-card-body">
         <div className={`badge badge-${status.tone}`}>{status.label}</div>
