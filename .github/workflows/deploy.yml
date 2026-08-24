@@ -34,10 +34,10 @@ jobs:
         run: npm ci
         working-directory: functions
 
-      - name: Deploy to Firebase (Hosting + Functions + Firestore rules)
+      - name: Deploy to Firebase (Hosting + Functions + Firestore rules + Storage rules)
         uses: w9jds/firebase-action@master
         with:
-          args: deploy --only hosting,functions,firestore:rules,firestore:indexes,storage:rules
+          args: deploy --only hosting,functions,firestore:rules,firestore:indexes,storage
         env:
           GCP_SA_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
