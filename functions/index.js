@@ -15,8 +15,16 @@ setGlobalOptions({ region: 'asia-northeast3' });
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCK_MINUTES = 10;
 
+// 입력값 뒤에 "동"/"호"/"호수"가 붙어 있어도(예: "201동", "1001호") 숫자만 남기고 정리합니다.
+function normalizeUnit(raw) {
+  return String(raw ?? '')
+    .trim()
+    .replace(/(동|호수|호)\s*$/u, '')
+    .trim();
+}
+
 function householdId(dong, ho) {
-  return `${String(dong).trim()}-${String(ho).trim()}`;
+  return `${normalizeUnit(dong)}-${normalizeUnit(ho)}`;
 }
 
 // 이름 마스킹: 2글자면 성만, 3글자 이상이면 첫/끝 글자만 남기고 가운데를 마스킹
@@ -34,7 +42,7 @@ function phoneTail(phone) {
   return digits.slice(-4);
 }
 
-// ── 입주민 로그인/최초등록 ──────────────────────────────────────────
+// ── 입주민 로그인/최초등록 ─────────────────────────────────────────
 export const householdLogin = onCall(async (request) => {
   const { dong, ho, phone, password } = request.data || {};
   if (!dong || !ho || !phone || !password) {
@@ -44,7 +52,9 @@ export const householdLogin = onCall(async (request) => {
     throw new HttpsError('invalid-argument', '비밀번호는 4자 이상이어야 합니다.');
   }
 
-  const id = householdId(dong, ho);
+  const dongNorm = normalizeUnit(dong);
+  const hoNorm = normalizeUnit(ho);
+  const id = householdId(dongNorm, hoNorm);
   const ref = db.doc(`households/${id}`);
   const snap = await ref.get();
 
@@ -87,7 +97,7 @@ export const householdLogin = onCall(async (request) => {
     });
   }
 
-  const token = await auth.createCustomToken(id, { dong: String(dong).trim(), ho: String(ho).trim() });
+  const token = await auth.createCustomToken(id, { dong: dongNorm, ho: hoNorm });
   return { token };
 });
 

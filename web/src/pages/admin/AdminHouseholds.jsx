@@ -2,6 +2,14 @@ import { useEffect, useState } from 'react';
 import { collection, deleteDoc, doc, getDoc, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 
+// 입력값 뒤에 "동"/"호"/"호수"가 붙어 있어도(예: "201동", "1001호") 숫자만 남기고 정리합니다.
+function normalizeUnit(raw) {
+  return String(raw ?? '')
+    .trim()
+    .replace(/(동|호수|호)\s*$/u, '')
+    .trim();
+}
+
 export default function AdminHouseholds() {
   const [households, setHouseholds] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -21,7 +29,10 @@ export default function AdminHouseholds() {
     return unsub;
   }, []);
 
-  async function addHousehold(dongVal, hoVal, nameVal) {
+  async function addHousehold(dongRaw, hoRaw, nameVal) {
+    const dongVal = normalizeUnit(dongRaw);
+    const hoVal = normalizeUnit(hoRaw);
+    if (!dongVal || !hoVal) return false;
     const id = `${dongVal}-${hoVal}`;
     const existing = await getDoc(doc(db, 'households', id));
     if (existing.exists()) return false;
