@@ -4,26 +4,14 @@ import { httpsCallable } from 'firebase/functions';
 import { signInWithCustomToken } from 'firebase/auth';
 import { auth, functions } from '../../firebase';
 
-// 숫자만 남기고 010-0000-0000 형식으로 자동 정리합니다.
-function formatPhone(raw) {
-  const digits = String(raw || '').replace(/\D/g, '').slice(0, 11);
-  if (digits.length <= 3) return digits;
-  if (digits.length <= 7) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
-  return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
-}
-
 export default function Login() {
   const navigate = useNavigate();
-  const [form, setForm] = useState({ dong: '', ho: '', phone: '', password: '' });
+  const [form, setForm] = useState({ dong: '', ho: '', password: '' });
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   function update(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
-  }
-
-  function updatePhone(value) {
-    setForm((f) => ({ ...f, phone: formatPhone(value) }));
   }
 
   function updatePassword(value) {
@@ -35,12 +23,8 @@ export default function Login() {
     e.preventDefault();
     setError('');
 
-    if (!form.dong || !form.ho || !form.phone || !form.password) {
-      setError('동, 호수, 연락처, 비밀번호를 모두 입력해주세요.');
-      return;
-    }
-    if (!/^010-\d{4}-\d{4}$/.test(form.phone)) {
-      setError('연락처는 010-0000-0000 형식으로 입력해주세요.');
+    if (!form.dong || !form.ho || !form.password) {
+      setError('동, 호수, 비밀번호를 모두 입력해주세요.');
       return;
     }
     if (!/^\d{4}$/.test(form.password)) {
@@ -54,7 +38,6 @@ export default function Login() {
       const result = await householdLogin({
         dong: form.dong.trim(),
         ho: form.ho.trim(),
-        phone: form.phone.trim(),
         password: form.password,
       });
       await signInWithCustomToken(auth, result.data.token);
@@ -84,10 +67,6 @@ export default function Login() {
             </div>
           </div>
           <div className="field">
-            <label htmlFor="phone">연락처</label>
-            <input id="phone" placeholder="010-0000-0000" value={form.phone} onChange={(e) => updatePhone(e.target.value)} inputMode="numeric" maxLength={13} />
-          </div>
-          <div className="field">
             <label htmlFor="password">비밀번호 (숫자 4자리)</label>
             <input
               id="password"
@@ -109,6 +88,7 @@ export default function Login() {
 
         <p className="auth-hint">
           처음 접속하시는 경우 입력하신 숫자 4자리 비밀번호로 자동 등록됩니다.<br />
+          이름과 연락처는 행사 신청 시 입력하시면 됩니다.<br />
           동/호수가 등록되어 있지 않거나 비밀번호를 잊으셨다면 관리사무소로 문의해주세요.
         </p>
 

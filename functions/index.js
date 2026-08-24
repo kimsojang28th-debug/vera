@@ -44,9 +44,9 @@ function phoneTail(phone) {
 
 // ── 입주민 로그인/최초등록 ──────────────────────────────────────────
 export const householdLogin = onCall(async (request) => {
-  const { dong, ho, phone, password } = request.data || {};
-  if (!dong || !ho || !phone || !password) {
-    throw new HttpsError('invalid-argument', '동, 호수, 연락처, 비밀번호를 모두 입력해주세요.');
+  const { dong, ho, password } = request.data || {};
+  if (!dong || !ho || !password) {
+    throw new HttpsError('invalid-argument', '동, 호수, 비밀번호를 모두 입력해주세요.');
   }
   if (!/^\d{4}$/.test(String(password))) {
     throw new HttpsError('invalid-argument', '비밀번호는 숫자 4자리로 입력해주세요.');
@@ -72,7 +72,6 @@ export const householdLogin = onCall(async (request) => {
     const hash = await bcrypt.hash(String(password), 10);
     await ref.update({
       passwordHash: hash,
-      phone: String(phone).trim(),
       isRegistered: true,
       failedAttempts: 0,
       lockUntil: null,
@@ -90,7 +89,6 @@ export const householdLogin = onCall(async (request) => {
       throw new HttpsError('permission-denied', '비밀번호가 일치하지 않습니다.');
     }
     await ref.update({
-      phone: String(phone).trim(),
       failedAttempts: 0,
       lockUntil: null,
       updatedAt: FieldValue.serverTimestamp(),
@@ -107,12 +105,16 @@ export const applyToEvent = onCall(async (request) => {
   if (!uid || !uid.includes('-')) {
     throw new HttpsError('unauthenticated', '로그인이 필요합니다.');
   }
-  const { eventId, answers } = request.data || {};
+  const { eventId, answers, residentName, phone } = request.data || {};
   if (!eventId) throw new HttpsError('invalid-argument', '행사 정보가 없습니다.');
+  if (!residentName || !String(residentName).trim()) {
+    throw new HttpsError('invalid-argument', '이름을 입력해주세요.');
+  }
+  if (!phone || !/^010-\d{4}-\d{4}$/.test(String(phone))) {
+    throw new HttpsError('invalid-argument', '연락처는 010-0000-0000 형식으로 입력해주세요.');
+  }
 
   const [dong, ho] = uid.split('-');
-  const householdSnap = await db.doc(`households/${uid}`).get();
-  const household = householdSnap.data() || {};
 
   const eventSnapPre = await db.doc(`events/${eventId}`).get();
   if (!eventSnapPre.exists) throw new HttpsError('not-found', '존재하지 않는 행사입니다.');
@@ -170,8 +172,8 @@ export const applyToEvent = onCall(async (request) => {
       householdId: uid,
       dong,
       ho,
-      phone: household.phone || '',
-      residentName: household.residentName || null,
+      phone: String(phone).trim(),
+      residentName: String(residentName).trim(),
       answers: answers || {},
       status: isFull ? 'waiting' : 'applied',
       appliedAt: FieldValue.serverTimestamp(),

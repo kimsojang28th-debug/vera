@@ -6,6 +6,14 @@ import { db, functions } from '../../firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import { formatDateTime, getEventStatus, isApplyOpen, isEventFull } from '../../utils/format';
 
+// 숫자만 남기고 010-0000-0000 형식으로 자동 정리합니다.
+function formatPhone(raw) {
+  const digits = String(raw || '').replace(/\D/g, '').slice(0, 11);
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 7) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+  return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+}
+
 export default function EventDetail() {
   const { eventId } = useParams();
   const { household, user } = useAuth();
@@ -15,6 +23,8 @@ export default function EventDetail() {
   const [loading, setLoading] = useState(true);
   const [myApplication, setMyApplication] = useState(null);
   const [statusList, setStatusList] = useState([]);
+  const [residentName, setResidentName] = useState('');
+  const [phone, setPhone] = useState('');
   const [answers, setAnswers] = useState({});
   const [agreed, setAgreed] = useState(false);
   const [error, setError] = useState('');
@@ -60,9 +70,21 @@ export default function EventDetail() {
   const full = isEventFull(event);
   const extraFields = event.extraFields || [];
 
+  function updatePhone(value) {
+    setPhone(formatPhone(value));
+  }
+
   async function handleApply(e) {
     e.preventDefault();
     setError('');
+    if (!residentName.trim()) {
+      setError('이름을 입력해주세요.');
+      return;
+    }
+    if (!/^010-\d{4}-\d{4}$/.test(phone)) {
+      setError('연락처는 010-0000-0000 형식으로 입력해주세요.');
+      return;
+    }
     if (!agreed) {
       setError('개인정보 수집·이용에 동의해주세요.');
       return;
@@ -77,7 +99,7 @@ export default function EventDetail() {
     setSubmitting(true);
     try {
       const applyToEvent = httpsCallable(functions, 'applyToEvent');
-      await applyToEvent({ eventId, answers });
+      await applyToEvent({ eventId, answers, residentName: residentName.trim(), phone });
       await loadStatusList();
       navigate('/my');
     } catch (err) {
@@ -91,16 +113,23 @@ export default function EventDetail() {
     <div className="event-detail">
       <button className="link-button back-link" onClick={() => navigate('/events')}>&larr; 목록으로</button>
 
-      <div className={`badge badge-${status.tone}`}>{status.label}</div>
-      <h2 className="page-title">{event.title}</h2>
-      <p className="event-description">{event.description}</p>
+      <div className="event-hero">
+        {event.bannerImageUrl && (
+          <img className="event-hero-banner" src={event.bannerImageUrl} alt={event.title} />
+        )}
+        <div className="event-hero-body">
+          <div className={`badge badge-${status.tone}`}>{status.label}</div>
+          <h2 className="event-hero-title">{event.title}</h2>
+          {event.description && <p className="event-description">{event.description}</p>}
 
-      <dl className="event-detail-meta">
-        <div><dt>행사일시</dt><dd>{formatDateTime(event.eventStart)} ~ {formatDateTime(event.eventEnd)}</dd></div>
-        <div><dt>장소</dt><dd>{event.place}</dd></div>
-        <div><dt>접수기간</dt><dd>{formatDateTime(event.applyStart)} ~ {formatDateTime(event.applyEnd)}</dd></div>
-        <div><dt>정원</dt><dd>{event.appliedCount ?? 0} / {event.capacity}명</dd></div>
-      </dl>
+          <dl className="event-detail-meta">
+            <div><dt>행사일시</dt><dd>{formatDateTime(event.eventStart)} ~ {formatDateTime(event.eventEnd)}</dd></div>
+            <div><dt>장소</dt><dd>{event.place}</dd></div>
+            <div><dt>접수기간</dt><dd>{formatDateTime(event.applyStart)} ~ {formatDateTime(event.applyEnd)}</dd></div>
+            <div><dt>정원</dt><dd>{event.appliedCount ?? 0} / {event.capacity}명</dd></div>
+          </dl>
+        </div>
+      </div>
 
       {event.groupId && (
         <div className="notice-box notice-box-muted">
@@ -130,6 +159,29 @@ export default function EventDetail() {
               <input value={`${household.dong}동 ${household.ho}호`} disabled />
             </div>
           </div>
+          <div className="field-row">
+            <div className="field">
+              <label htmlFor="residentName">이름</label>
+              <input
+                id="residentName"
+                placeholder="예: 홍길동"
+                value={residentName}
+                onChange={(e) => setResidentName(e.target.value)}
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="applyPhone">연락처</label>
+              <input
+                id="applyPhone"
+                placeholder="010-0000-0000"
+                value={phone}
+                onChange={(e) => updatePhone(e.target.value)}
+                inputMode="numeric"
+                maxLength={13}
+              />
+            </div>
+          </div>
+          <p className="muted small-note">같은 세대라도 신청하시는 분의 이름과 연락처를 입력해주세요.</p>
 
           {extraFields.map((f) => (
             <div className="field" key={f.id}>
@@ -155,7 +207,7 @@ export default function EventDetail() {
 
           <label className="checkbox-row">
             <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
-            (필수) 개인정보 수집·이용에 동의합니다. 수집항목: 동/호수, 연락처 / 목적: 행사 신청·운영 / 보유기간: 행사 종료 후 1년
+            (필수) 개인정보 수집·이용에 동의합니다. 수집항목: 동/호수, 이름, 연락처 / 목적: 행사 신청·운영 / 보유기간: 행사 종료 후 1년
           </label>
 
           {error && <p className="form-error">{error}</p>}

@@ -89,7 +89,7 @@ export default function AdminHouseholds() {
   }
 
   async function handleEditName(id, currentName) {
-    const next = window.prompt('입주민 성명(선택, 신청현황 마스킹 표시용)', currentName || '');
+    const next = window.prompt('입주민 성명(선택, 관리용 메모 - 실제 신청자 이름은 신청서에서 입력됩니다)', currentName || '');
     if (next === null) return;
     await updateDoc(doc(db, 'households', id), { residentName: next.trim() || null, updatedAt: serverTimestamp() });
   }
@@ -149,7 +149,7 @@ export default function AdminHouseholds() {
             <input placeholder="호수 (예: 1502)" value={ho} onChange={(e) => setHo(e.target.value)} />
           </div>
           <div className="field-row">
-            <input placeholder="성명(선택, 마스킹 표시용)" value={name} onChange={(e) => setName(e.target.value)} />
+            <input placeholder="성명(선택, 관리용 메모)" value={name} onChange={(e) => setName(e.target.value)} />
             <button type="submit" className="btn btn-primary">등록</button>
           </div>
         </form>
@@ -186,7 +186,7 @@ export default function AdminHouseholds() {
                     onChange={toggleSelectAll}
                   />
                 </th>
-                <th>동</th><th>호수</th><th>성명</th><th>연락처</th><th>등록상태</th><th></th>
+                <th>동</th><th>호수</th><th>성명</th><th>등록상태</th><th></th>
               </tr>
             </thead>
             <tbody>
@@ -198,7 +198,6 @@ export default function AdminHouseholds() {
                   <td>{h.dong}동</td>
                   <td>{h.ho}호</td>
                   <td>{h.residentName || '-'}</td>
-                  <td>{h.phone || '-'}</td>
                   <td>{h.isRegistered ? '등록완료' : '미등록(비밀번호 대기)'}</td>
                   <td className="table-actions">
                     <button className="link-button" onClick={() => handleEditName(h.id, h.residentName)}>성명수정</button>
