@@ -42,14 +42,14 @@ function phoneTail(phone) {
   return digits.slice(-4);
 }
 
-// ── 입주민 로그인/최초등록 ─────────────────────────────────────────
+// ── 입주민 로그인/최초등록 ──────────────────────────────────────────
 export const householdLogin = onCall(async (request) => {
   const { dong, ho, phone, password } = request.data || {};
   if (!dong || !ho || !phone || !password) {
     throw new HttpsError('invalid-argument', '동, 호수, 연락처, 비밀번호를 모두 입력해주세요.');
   }
-  if (String(password).length < 4) {
-    throw new HttpsError('invalid-argument', '비밀번호는 4자 이상이어야 합니다.');
+  if (!/^\d{4}$/.test(String(password))) {
+    throw new HttpsError('invalid-argument', '비밀번호는 숫자 4자리로 입력해주세요.');
   }
 
   const dongNorm = normalizeUnit(dong);
@@ -101,7 +101,7 @@ export const householdLogin = onCall(async (request) => {
   return { token };
 });
 
-// ── 신청 접수 (정원 트랜잭션) ───────────────────────────────────────
+// ── 신청 접수 (정원 트랜잭션 + 정원마감 시 대기신청) ──────────────────
 export const applyToEvent = onCall(async (request) => {
   const uid = request.auth?.uid;
   if (!uid || !uid.includes('-')) {
@@ -114,19 +114,37 @@ export const applyToEvent = onCall(async (request) => {
   const householdSnap = await db.doc(`households/${uid}`).get();
   const household = householdSnap.data() || {};
 
-  // 중복 신청 방지: 같은 세대가 같은 행사에 이미 신청했는지 확인
+  const eventSnapPre = await db.doc(`events/${eventId}`).get();
+  if (!eventSnapPre.exists) throw new HttpsError('not-found', '존재하지 않는 행사입니다.');
+  const eventPre = eventSnapPre.data();
+
+  // 같은 그룹(예: 이틀 중 하루만 신청 가능)의 다른 행사에 이미 신청했는지 확인
+  if (eventPre.groupId) {
+    const siblingsSnap = await db.collection('events').where('groupId', '==', eventPre.groupId).get();
+    const siblingIds = siblingsSnap.docs.map((d) => d.id);
+    const appliedSnap = await db
+      .collection('applications')
+      .where('householdId', '==', uid)
+      .where('status', '==', 'applied')
+      .get();
+    const conflict = appliedSnap.docs.some((d) => siblingIds.includes(d.data().eventId));
+    if (conflict) {
+      throw new HttpsError('already-exists', '같은 그룹의 다른 날짜에 이미 신청하셨습니다.');
+    }
+  }
+
+  // 같은 행사 중복 신청 방지 (신청/대기신청 모두 포함)
   const existing = await db
     .collection('applications')
     .where('eventId', '==', eventId)
     .where('householdId', '==', uid)
-    .where('status', '==', 'applied')
-    .limit(1)
     .get();
-  if (!existing.empty) {
-    throw new HttpsError('already-exists', '이미 신청한 행사입니다.');
+  if (existing.docs.some((d) => ['applied', 'waiting'].includes(d.data().status))) {
+    throw new HttpsError('already-exists', '이미 신청(또는 대기신청)한 행사입니다.');
   }
 
   const newRef = db.collection('applications').doc();
+  let waitlisted = false;
 
   await db.runTransaction(async (tx) => {
     const eventRef = db.doc(`events/${eventId}`);
@@ -140,11 +158,13 @@ export const applyToEvent = onCall(async (request) => {
 
     if (event.status !== 'open') throw new HttpsError('failed-precondition', '현재 신청을 받지 않는 행사입니다.');
     if (now < applyStart || now > applyEnd) throw new HttpsError('failed-precondition', '신청 기간이 아닙니다.');
-    if ((event.appliedCount || 0) >= event.capacity) {
-      throw new HttpsError('resource-exhausted', '정원이 마감되었습니다.');
-    }
 
-    tx.update(eventRef, { appliedCount: FieldValue.increment(1) });
+    const isFull = (event.appliedCount || 0) >= event.capacity;
+    waitlisted = isFull;
+
+    if (!isFull) {
+      tx.update(eventRef, { appliedCount: FieldValue.increment(1) });
+    }
     tx.set(newRef, {
       eventId,
       householdId: uid,
@@ -153,16 +173,16 @@ export const applyToEvent = onCall(async (request) => {
       phone: household.phone || '',
       residentName: household.residentName || null,
       answers: answers || {},
-      status: 'applied',
+      status: isFull ? 'waiting' : 'applied',
       appliedAt: FieldValue.serverTimestamp(),
       cancelledAt: null,
     });
   });
 
-  return { applicationId: newRef.id };
+  return { applicationId: newRef.id, waitlisted };
 });
 
-// ── 신청 취소 (정원 트랜잭션 복원) ──────────────────────────────────
+// ── 신청 취소 (정원 트랜잭션 복원 + 대기자 자동 승격) ──────────────────
 export const cancelApplication = onCall(async (request) => {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError('unauthenticated', '로그인이 필요합니다.');
@@ -183,8 +203,27 @@ export const cancelApplication = onCall(async (request) => {
     }
     if (app.status === 'cancelled') return;
 
+    const wasApplied = app.status === 'applied';
     tx.update(appRef, { status: 'cancelled', cancelledAt: FieldValue.serverTimestamp() });
-    tx.update(db.doc(`events/${app.eventId}`), { appliedCount: FieldValue.increment(-1) });
+
+    if (wasApplied) {
+      // 취소로 자리가 나면, 대기신청 중 가장 먼저 신청한 세대를 자동으로 승격합니다.
+      const waitingSnap = await tx.get(
+        db.collection('applications').where('eventId', '==', app.eventId).where('status', '==', 'waiting')
+      );
+      if (!waitingSnap.empty) {
+        const sorted = waitingSnap.docs.slice().sort((a, b) => {
+          const at = a.data().appliedAt?.toMillis?.() || 0;
+          const bt = b.data().appliedAt?.toMillis?.() || 0;
+          return at - bt;
+        });
+        const promote = sorted[0];
+        tx.update(promote.ref, { status: 'applied', promotedAt: FieldValue.serverTimestamp() });
+        // 취소 1명 + 승격 1명이므로 정원 카운트는 그대로 둡니다.
+      } else {
+        tx.update(db.doc(`events/${app.eventId}`), { appliedCount: FieldValue.increment(-1) });
+      }
+    }
   });
 
   return { ok: true };
@@ -206,7 +245,7 @@ export const updateApplication = onCall(async (request) => {
   if (app.householdId !== uid) {
     throw new HttpsError('permission-denied', '본인 세대의 신청만 수정할 수 있습니다.');
   }
-  if (app.status !== 'applied') {
+  if (app.status === 'cancelled') {
     throw new HttpsError('failed-precondition', '취소된 신청은 수정할 수 없습니다.');
   }
 

@@ -4,6 +4,14 @@ import { httpsCallable } from 'firebase/functions';
 import { signInWithCustomToken } from 'firebase/auth';
 import { auth, functions } from '../../firebase';
 
+// 숫자만 남기고 010-0000-0000 형식으로 자동 정리합니다.
+function formatPhone(raw) {
+  const digits = String(raw || '').replace(/\D/g, '').slice(0, 11);
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 7) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+  return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+}
+
 export default function Login() {
   const navigate = useNavigate();
   const [form, setForm] = useState({ dong: '', ho: '', phone: '', password: '' });
@@ -14,6 +22,15 @@ export default function Login() {
     setForm((f) => ({ ...f, [field]: value }));
   }
 
+  function updatePhone(value) {
+    setForm((f) => ({ ...f, phone: formatPhone(value) }));
+  }
+
+  function updatePassword(value) {
+    const digitsOnly = value.replace(/\D/g, '').slice(0, 4);
+    setForm((f) => ({ ...f, password: digitsOnly }));
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
@@ -22,8 +39,12 @@ export default function Login() {
       setError('동, 호수, 연락처, 비밀번호를 모두 입력해주세요.');
       return;
     }
-    if (form.password.length < 4) {
-      setError('비밀번호는 4자 이상 입력해주세요.');
+    if (!/^010-\d{4}-\d{4}$/.test(form.phone)) {
+      setError('연락처는 010-0000-0000 형식으로 입력해주세요.');
+      return;
+    }
+    if (!/^\d{4}$/.test(form.password)) {
+      setError('비밀번호는 숫자 4자리로 입력해주세요.');
       return;
     }
 
@@ -64,11 +85,19 @@ export default function Login() {
           </div>
           <div className="field">
             <label htmlFor="phone">연락처</label>
-            <input id="phone" placeholder="010-0000-0000" value={form.phone} onChange={(e) => update('phone', e.target.value)} />
+            <input id="phone" placeholder="010-0000-0000" value={form.phone} onChange={(e) => updatePhone(e.target.value)} inputMode="numeric" maxLength={13} />
           </div>
           <div className="field">
-            <label htmlFor="password">비밀번호</label>
-            <input id="password" type="password" placeholder="처음 접속 시 사용할 비밀번호를 설정합니다" value={form.password} onChange={(e) => update('password', e.target.value)} />
+            <label htmlFor="password">비밀번호 (숫자 4자리)</label>
+            <input
+              id="password"
+              type="password"
+              placeholder="숫자 4자리 (예: 1234)"
+              value={form.password}
+              onChange={(e) => updatePassword(e.target.value)}
+              inputMode="numeric"
+              maxLength={4}
+            />
           </div>
 
           {error && <p className="form-error">{error}</p>}
@@ -79,7 +108,7 @@ export default function Login() {
         </form>
 
         <p className="auth-hint">
-          처음 접속하시는 경우 입력하신 비밀번호로 자동 등록됩니다.<br />
+          처음 접속하시는 경우 입력하신 숫자 4자리 비밀번호로 자동 등록됩니다.<br />
           동/호수가 등록되어 있지 않거나 비밀번호를 잊으셨다면 관리사무소로 문의해주세요.
         </p>
 

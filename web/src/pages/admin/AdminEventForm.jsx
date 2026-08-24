@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { addDoc, collection, doc, getDoc, serverTimestamp, Timestamp, updateDoc } from 'firebase/firestore';
-import { db } from '../../firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db, storage } from '../../firebase';
 import { useAuth } from '../../contexts/AuthContext';
 
 const emptyEvent = {
@@ -15,13 +16,52 @@ const emptyEvent = {
   capacity: 30,
   status: 'draft',
   bannerImageUrl: '',
+  groupId: '',
+  groupTitle: '',
 };
+
+const BANNER_WIDTH = 1200;
+const BANNER_HEIGHT = 400;
 
 function toInputDateTime(ts) {
   if (!ts) return '';
   const d = ts.toDate ? ts.toDate() : new Date(ts);
   const pad = (n) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function loadImage(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+// 업로드한 이미지를 배너 권장 비율(3:1)에 맞춰 가운데를 기준으로 잘라 리사이즈합니다.
+async function resizeImageToBanner(file, targetW = BANNER_WIDTH, targetH = BANNER_HEIGHT) {
+  const img = await loadImage(file);
+  const canvas = document.createElement('canvas');
+  canvas.width = targetW;
+  canvas.height = targetH;
+  const ctx = canvas.getContext('2d');
+  const srcRatio = img.width / img.height;
+  const targetRatio = targetW / targetH;
+  let sx, sy, sw, sh;
+  if (srcRatio > targetRatio) {
+    sh = img.height;
+    sw = sh * targetRatio;
+    sx = (img.width - sw) / 2;
+    sy = 0;
+  } else {
+    sw = img.width;
+    sh = sw / targetRatio;
+    sx = 0;
+    sy = (img.height - sh) / 2;
+  }
+  ctx.drawImage(img, sx, sy, sw, sh, 0, 0, targetW, targetH);
+  return new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.85));
 }
 
 let fieldCounter = 0;
@@ -40,6 +80,8 @@ export default function AdminEventForm() {
   const [extraFields, setExtraFields] = useState([]);
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -59,6 +101,8 @@ export default function AdminEventForm() {
           capacity: data.capacity || 30,
           status: data.status || 'draft',
           bannerImageUrl: data.bannerImageUrl || '',
+          groupId: data.groupId || '',
+          groupTitle: data.groupTitle || '',
         });
         setExtraFields(data.extraFields || []);
       }
@@ -68,6 +112,30 @@ export default function AdminEventForm() {
 
   function update(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
+  }
+
+  async function handleImageSelect(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setUploadError('이미지 파일만 업로드할 수 있습니다.');
+      return;
+    }
+    setUploadError('');
+    setUploading(true);
+    try {
+      const blob = await resizeImageToBanner(file);
+      const path = `event-banners/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
+      const fileRef = ref(storage, path);
+      await uploadBytes(fileRef, blob, { contentType: 'image/jpeg' });
+      const url = await getDownloadURL(fileRef);
+      update('bannerImageUrl', url);
+    } catch (err) {
+      setUploadError('이미지 업로드에 실패했습니다: ' + (err.message || ''));
+    } finally {
+      setUploading(false);
+    }
   }
 
   function addField() {
@@ -102,6 +170,8 @@ export default function AdminEventForm() {
       capacity: Number(form.capacity) || 0,
       status: form.status,
       bannerImageUrl: form.bannerImageUrl,
+      groupId: form.groupId.trim(),
+      groupTitle: form.groupTitle.trim(),
       extraFields: extraFields
         .filter((f) => f.label)
         .map((f) => ({
@@ -149,9 +219,26 @@ export default function AdminEventForm() {
           <label>장소 *</label>
           <input value={form.place} onChange={(e) => update('place', e.target.value)} />
         </div>
+
         <div className="field">
-          <label>배너 이미지 URL</label>
-          <input value={form.bannerImageUrl} onChange={(e) => update('bannerImageUrl', e.target.value)} placeholder="https://..." />
+          <label>배너 이미지 (권장 비율 3:1, 예: 1200x400px — 업로드 시 자동으로 맞춰 잘립니다)</label>
+          {form.bannerImageUrl && (
+            <img src={form.bannerImageUrl} alt="배너 미리보기" className="banner-preview" />
+          )}
+          <div className="btn-row">
+            <label className="btn">
+              {uploading ? '업로드 중...' : '이미지 업로드'}
+              <input type="file" accept="image/*" onChange={handleImageSelect} disabled={uploading} style={{ display: 'none' }} />
+            </label>
+            {form.bannerImageUrl && (
+              <button type="button" className="btn" onClick={() => update('bannerImageUrl', '')}>이미지 삭제</button>
+            )}
+          </div>
+          {uploadError && <p className="form-error">{uploadError}</p>}
+          <details className="advanced-field">
+            <summary>또는 이미지 주소 직접 입력(고급)</summary>
+            <input value={form.bannerImageUrl} onChange={(e) => update('bannerImageUrl', e.target.value)} placeholder="https://..." />
+          </details>
         </div>
 
         <div className="field-row">
@@ -190,6 +277,30 @@ export default function AdminEventForm() {
             </select>
           </div>
         </div>
+
+        <div className="field-row">
+          <div className="field">
+            <label>그룹 ID (선택)</label>
+            <input
+              value={form.groupId}
+              onChange={(e) => update('groupId', e.target.value)}
+              placeholder="예: health-2026-09"
+            />
+          </div>
+          <div className="field">
+            <label>그룹 제목 (선택)</label>
+            <input
+              value={form.groupTitle}
+              onChange={(e) => update('groupTitle', e.target.value)}
+              placeholder="예: 건강상담(택1)"
+            />
+          </div>
+        </div>
+        <p className="muted field-help">
+          이틀 이상 진행하는 행사처럼 "여러 날짜 중 하루만 신청 가능"하게 묶으려면, 각 날짜를 별도 행사로 등록한 뒤
+          동일한 그룹 ID를 입력하세요. 입주민 화면에는 그룹 제목으로 된 카드 하나에 날짜 선택지가 함께 표시되고,
+          그 중 하루만 신청할 수 있습니다. (그룹 제목을 비워두면 행사명이 대신 사용됩니다.)
+        </p>
 
         <div className="extra-fields-editor">
           <div className="page-header-row">

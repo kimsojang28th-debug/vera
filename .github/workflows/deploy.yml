@@ -37,7 +37,7 @@ jobs:
       - name: Deploy to Firebase (Hosting + Functions + Firestore rules)
         uses: w9jds/firebase-action@master
         with:
-          args: deploy --only hosting,functions,firestore:rules,firestore:indexes
+          args: deploy --only hosting,functions,firestore:rules,firestore:indexes,storage:rules
         env:
           GCP_SA_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}

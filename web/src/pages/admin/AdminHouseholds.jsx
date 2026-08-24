@@ -19,6 +19,7 @@ export default function AdminHouseholds() {
   const [bulkText, setBulkText] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [selectedIds, setSelectedIds] = useState(new Set());
 
   useEffect(() => {
     const q = query(collection(db, 'households'), orderBy('dong'));
@@ -107,6 +108,32 @@ export default function AdminHouseholds() {
   async function handleDelete(id) {
     if (!window.confirm('세대를 목록에서 삭제하시겠습니까? (이사 등으로 더 이상 유효하지 않은 경우)')) return;
     await deleteDoc(doc(db, 'households', id));
+    setSelectedIds((s) => {
+      const next = new Set(s);
+      next.delete(id);
+      return next;
+    });
+  }
+
+  function toggleSelected(id) {
+    setSelectedIds((s) => {
+      const next = new Set(s);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    setSelectedIds((s) => (s.size === households.length ? new Set() : new Set(households.map((h) => h.id))));
+  }
+
+  async function handleBulkDelete() {
+    if (selectedIds.size === 0) return;
+    if (!window.confirm(`선택한 ${selectedIds.size}건을 삭제하시겠습니까?`)) return;
+    await Promise.all(Array.from(selectedIds).map((id) => deleteDoc(doc(db, 'households', id))));
+    setSelectedIds(new Set());
+    setMessage('선택한 세대를 삭제했습니다.');
   }
 
   return (
@@ -141,27 +168,48 @@ export default function AdminHouseholds() {
       {loading ? (
         <div className="page-loading">불러오는 중...</div>
       ) : (
-        <table>
-          <thead>
-            <tr><th>동</th><th>호수</th><th>성명</th><th>연락처</th><th>등록상태</th><th></th></tr>
-          </thead>
-          <tbody>
-            {households.map((h) => (
-              <tr key={h.id}>
-                <td>{h.dong}동</td>
-                <td>{h.ho}호</td>
-                <td>{h.residentName || '-'}</td>
-                <td>{h.phone || '-'}</td>
-                <td>{h.isRegistered ? '등록완료' : '미등록(비밀번호 대기)'}</td>
-                <td className="table-actions">
-                  <button className="link-button" onClick={() => handleEditName(h.id, h.residentName)}>성명수정</button>
-                  {h.isRegistered && <button className="link-button" onClick={() => handleResetPassword(h.id)}>비번초기화</button>}
-                  <button className="link-button" onClick={() => handleDelete(h.id)}>삭제</button>
-                </td>
+        <>
+          {households.length > 0 && (
+            <div className="admin-toolbar">
+              <button className="btn btn-danger" onClick={handleBulkDelete} disabled={selectedIds.size === 0}>
+                선택 삭제 ({selectedIds.size}건)
+              </button>
+            </div>
+          )}
+          <table>
+            <thead>
+              <tr>
+                <th>
+                  <input
+                    type="checkbox"
+                    checked={households.length > 0 && selectedIds.size === households.length}
+                    onChange={toggleSelectAll}
+                  />
+                </th>
+                <th>동</th><th>호수</th><th>성명</th><th>연락처</th><th>등록상태</th><th></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {households.map((h) => (
+                <tr key={h.id}>
+                  <td>
+                    <input type="checkbox" checked={selectedIds.has(h.id)} onChange={() => toggleSelected(h.id)} />
+                  </td>
+                  <td>{h.dong}동</td>
+                  <td>{h.ho}호</td>
+                  <td>{h.residentName || '-'}</td>
+                  <td>{h.phone || '-'}</td>
+                  <td>{h.isRegistered ? '등록완료' : '미등록(비밀번호 대기)'}</td>
+                  <td className="table-actions">
+                    <button className="link-button" onClick={() => handleEditName(h.id, h.residentName)}>성명수정</button>
+                    {h.isRegistered && <button className="link-button" onClick={() => handleResetPassword(h.id)}>비번초기화</button>}
+                    <button className="link-button" onClick={() => handleDelete(h.id)}>삭제</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
       )}
     </div>
   );

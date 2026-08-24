@@ -4,6 +4,8 @@ import { db } from '../../firebase';
 import { formatDateTime } from '../../utils/format';
 import { downloadCsv } from '../../utils/csv';
 
+const STATUS_LABEL = { applied: '신청', waiting: '대기', cancelled: '취소' };
+
 export default function AdminApplications() {
   const [events, setEvents] = useState([]);
   const [selectedEventId, setSelectedEventId] = useState('');
@@ -29,7 +31,7 @@ export default function AdminApplications() {
       const q = query(collection(db, 'applications'), where('eventId', '==', selectedEventId));
       const snap = await getDocs(q);
       let apps = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      if (!includeCancelled) apps = apps.filter((a) => a.status === 'applied');
+      if (!includeCancelled) apps = apps.filter((a) => a.status !== 'cancelled');
       apps.sort((a, b) => (b.appliedAt?.toMillis?.() || 0) - (a.appliedAt?.toMillis?.() || 0));
       setApplications(apps);
       setLoading(false);
@@ -47,7 +49,7 @@ export default function AdminApplications() {
         '호수': a.ho,
         '성명': a.residentName || '',
         '연락처': a.phone,
-        '상태': a.status === 'applied' ? '신청' : '취소',
+        '상태': STATUS_LABEL[a.status] || a.status,
         '신청일시': formatDateTime(a.appliedAt),
       };
       extraFields.forEach((f) => {
@@ -94,7 +96,7 @@ export default function AdminApplications() {
                 <td>{a.ho}호</td>
                 <td>{a.residentName || '-'}</td>
                 <td>{a.phone}</td>
-                <td>{a.status === 'applied' ? '신청' : '취소'}</td>
+                <td>{STATUS_LABEL[a.status] || a.status}</td>
                 <td>{formatDateTime(a.appliedAt)}</td>
                 {extraFields.map((f) => <td key={f.id}>{a.answers?.[f.id] || '-'}</td>)}
               </tr>

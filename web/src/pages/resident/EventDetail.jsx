@@ -4,7 +4,7 @@ import { doc, getDoc, getDocs, query, collection, where } from 'firebase/firesto
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../../firebase';
 import { useAuth } from '../../contexts/AuthContext';
-import { formatDateTime, getEventStatus, isApplyOpen } from '../../utils/format';
+import { formatDateTime, getEventStatus, isApplyOpen, isEventFull } from '../../utils/format';
 
 export default function EventDetail() {
   const { eventId } = useParams();
@@ -38,13 +38,12 @@ export default function EventDetail() {
       const myQ = query(
         collection(db, 'applications'),
         where('eventId', '==', eventId),
-        where('householdId', '==', user.uid),
-        where('status', '==', 'applied')
+        where('householdId', '==', user.uid)
       );
       const myApps = await getDocs(myQ);
-      if (!myApps.empty) {
-        const d = myApps.docs[0];
-        setMyApplication({ id: d.id, ...d.data() });
+      const active = myApps.docs.find((d) => ['applied', 'waiting'].includes(d.data().status));
+      if (active) {
+        setMyApplication({ id: active.id, ...active.data() });
       }
 
       await loadStatusList();
@@ -58,6 +57,7 @@ export default function EventDetail() {
 
   const status = getEventStatus(event);
   const canApply = isApplyOpen(event) && !myApplication;
+  const full = isEventFull(event);
   const extraFields = event.extraFields || [];
 
   async function handleApply(e) {
@@ -102,15 +102,28 @@ export default function EventDetail() {
         <div><dt>정원</dt><dd>{event.appliedCount ?? 0} / {event.capacity}명</dd></div>
       </dl>
 
+      {event.groupId && (
+        <div className="notice-box notice-box-muted">
+          이 행사는 같은 그룹의 다른 날짜와 묶여 있어, 그 중 하루만 신청하실 수 있습니다.
+        </div>
+      )}
+
       {myApplication ? (
         <div className="notice-box">
-          이미 신청하셨습니다. "나의 신청내역"에서 수정 또는 취소하실 수 있습니다.
+          {myApplication.status === 'waiting'
+            ? '대기 신청 상태입니다. 자리가 나면 순서대로 자동으로 신청 확정됩니다. "나의 신청내역"에서 확인·취소하실 수 있습니다.'
+            : '이미 신청하셨습니다. "나의 신청내역"에서 수정 또는 취소하실 수 있습니다.'}
         </div>
       ) : !isApplyOpen(event) ? (
         <div className="notice-box">현재 신청할 수 없는 행사입니다.</div>
       ) : (
         <form className="application-form" onSubmit={handleApply}>
           <h3>신청서</h3>
+          {full && (
+            <div className="notice-box notice-box-muted">
+              정원이 마감되어 대기 신청으로 접수됩니다. 취소가 발생하면 대기 순서대로 자동 신청 확정됩니다.
+            </div>
+          )}
           <div className="field-row">
             <div className="field">
               <label>동/호수</label>
@@ -148,7 +161,7 @@ export default function EventDetail() {
           {error && <p className="form-error">{error}</p>}
 
           <button type="submit" className="btn btn-primary" disabled={submitting || !canApply}>
-            {submitting ? '신청 중...' : '신청하기'}
+            {submitting ? '신청 중...' : full ? '대기 신청하기' : '신청하기'}
           </button>
         </form>
       )}

@@ -15,19 +15,17 @@ export default function MyApplications() {
 
   async function load() {
     setLoading(true);
-    const q = query(
-      collection(db, 'applications'),
-      where('householdId', '==', user.uid),
-      where('status', '==', 'applied')
-    );
+    const q = query(collection(db, 'applications'), where('householdId', '==', user.uid));
     const snap = await getDocs(q);
     const apps = await Promise.all(
-      snap.docs.map(async (d) => {
-        const app = { id: d.id, ...d.data() };
-        const eventSnap = await getDoc(doc(db, 'events', app.eventId));
-        app.event = eventSnap.exists() ? { id: eventSnap.id, ...eventSnap.data() } : null;
-        return app;
-      })
+      snap.docs
+        .filter((d) => d.data().status !== 'cancelled')
+        .map(async (d) => {
+          const app = { id: d.id, ...d.data() };
+          const eventSnap = await getDoc(doc(db, 'events', app.eventId));
+          app.event = eventSnap.exists() ? { id: eventSnap.id, ...eventSnap.data() } : null;
+          return app;
+        })
     );
     apps.sort((a, b) => (b.appliedAt?.toMillis?.() || 0) - (a.appliedAt?.toMillis?.() || 0));
     setItems(apps);
@@ -83,11 +81,17 @@ export default function MyApplications() {
         <div className="my-application-list">
           {items.map((app) => (
             <div key={app.id} className="my-application-card">
+              <span className={`badge badge-${app.status === 'waiting' ? 'muted' : 'open'}`}>
+                {app.status === 'waiting' ? '대기중' : '신청완료'}
+              </span>
               <h3>{app.event?.title || '(삭제된 행사)'}</h3>
               {app.event && (
                 <p className="muted">{formatDateTime(app.event.eventStart)} · {app.event.place}</p>
               )}
               <p className="muted">신청일시: {formatDateTime(app.appliedAt)}</p>
+              {app.status === 'waiting' && (
+                <p className="muted small-note">자리가 나면 대기 순서대로 자동으로 신청 확정됩니다.</p>
+              )}
 
               {editingId === app.id ? (
                 <div className="edit-block">
