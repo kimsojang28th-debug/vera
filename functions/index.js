@@ -204,14 +204,21 @@ export const cancelApplication = onCall(async (request) => {
     if (app.status === 'cancelled') return;
 
     const wasApplied = app.status === 'applied';
+
+    // Firestore 트랜잭션은 모든 읽기(get)가 모든 쓰기(update/set)보다 먼저 실행되어야 하므로,
+    // 대기자 조회는 취소 상태로 업데이트하기 "전"에 미리 수행합니다.
+    let waitingSnap = null;
+    if (wasApplied) {
+      waitingSnap = await tx.get(
+        db.collection('applications').where('eventId', '==', app.eventId).where('status', '==', 'waiting')
+      );
+    }
+
     tx.update(appRef, { status: 'cancelled', cancelledAt: FieldValue.serverTimestamp() });
 
     if (wasApplied) {
       // 취소로 자리가 나면, 대기신청 중 가장 먼저 신청한 세대를 자동으로 승격합니다.
-      const waitingSnap = await tx.get(
-        db.collection('applications').where('eventId', '==', app.eventId).where('status', '==', 'waiting')
-      );
-      if (!waitingSnap.empty) {
+      if (waitingSnap && !waitingSnap.empty) {
         const sorted = waitingSnap.docs.slice().sort((a, b) => {
           const at = a.data().appliedAt?.toMillis?.() || 0;
           const bt = b.data().appliedAt?.toMillis?.() || 0;

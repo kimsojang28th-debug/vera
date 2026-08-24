@@ -179,7 +179,7 @@ export default function EventDetail() {
               {statusList.map((a, i) => (
                 <tr key={i}>
                   <td>{a.dong}동</td>
-                  <td>{a.ho}</td>
+                  <td>{a.ho}호</td>
                   <td>{a.name || '-'}</td>
                   <td>{a.phoneTail ? `010-****-${a.phoneTail}` : '-'}</td>
                 </tr>
