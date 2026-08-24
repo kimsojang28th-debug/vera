@@ -23,6 +23,7 @@ export default function EventDetail() {
   const [loading, setLoading] = useState(true);
   const [myApplication, setMyApplication] = useState(null);
   const [statusList, setStatusList] = useState([]);
+  const [waitingList, setWaitingList] = useState([]);
   const [residentName, setResidentName] = useState('');
   const [phone, setPhone] = useState('');
   const [answers, setAnswers] = useState({});
@@ -35,6 +36,7 @@ export default function EventDetail() {
       const getApplicationStatus = httpsCallable(functions, 'getApplicationStatus');
       const result = await getApplicationStatus({ eventId });
       setStatusList(result.data.applications || []);
+      setWaitingList(result.data.waiting || []);
     } catch (err) {
       console.error(err);
     }
@@ -219,17 +221,18 @@ export default function EventDetail() {
       )}
 
       <div className="status-list">
-        <h3>신청 현황 ({statusList.length}건)</h3>
+        <h3>신청 현황 ({statusList.length}{event.capacity ? ` / ${event.capacity}` : ''}건)</h3>
         {statusList.length === 0 ? (
           <p className="empty-state">아직 신청자가 없습니다.</p>
         ) : (
           <table>
             <thead>
-              <tr><th>동</th><th>호수</th><th>이름</th><th>연락처</th></tr>
+              <tr><th>번호</th><th>동</th><th>호수</th><th>이름</th><th>연락처</th></tr>
             </thead>
             <tbody>
               {statusList.map((a, i) => (
                 <tr key={i}>
+                  <td>{i + 1}</td>
                   <td>{a.dong}동</td>
                   <td>{a.ho}호</td>
                   <td>{a.name || '-'}</td>
@@ -240,6 +243,29 @@ export default function EventDetail() {
           </table>
         )}
       </div>
+
+      {waitingList.length > 0 && (
+        <div className="status-list">
+          <h3>대기자 명단 ({waitingList.length}건)</h3>
+          <p className="muted small-note">정원 마감 이후 신청한 분들로, 취소가 발생하면 대기 순서대로 자동 신청 확정됩니다.</p>
+          <table>
+            <thead>
+              <tr><th>대기순번</th><th>동</th><th>호수</th><th>이름</th><th>연락처</th></tr>
+            </thead>
+            <tbody>
+              {waitingList.map((a, i) => (
+                <tr key={i}>
+                  <td>대기 {i + 1}</td>
+                  <td>{a.dong}동</td>
+                  <td>{a.ho}호</td>
+                  <td>{a.name || '-'}</td>
+                  <td>{a.phoneTail ? `010-****-${a.phoneTail}` : '-'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

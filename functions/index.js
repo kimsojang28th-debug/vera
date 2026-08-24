@@ -269,21 +269,22 @@ export const getApplicationStatus = onCall(async (request) => {
   const { eventId } = request.data || {};
   if (!eventId) throw new HttpsError('invalid-argument', '행사 정보가 없습니다.');
 
-  const snap = await db
-    .collection('applications')
-    .where('eventId', '==', eventId)
-    .where('status', '==', 'applied')
-    .get();
+  const maskEntry = (a) => ({
+    dong: a.dong,
+    ho: a.ho,
+    name: maskName(a.residentName),
+    phoneTail: phoneTail(a.phone),
+  });
+  const byAppliedAt = (a, b) => (a.appliedAt?.toMillis?.() || 0) - (b.appliedAt?.toMillis?.() || 0);
 
-  const applications = snap.docs
-    .map((d) => d.data())
-    .sort((a, b) => (a.appliedAt?.toMillis?.() || 0) - (b.appliedAt?.toMillis?.() || 0))
-    .map((a) => ({
-      dong: a.dong,
-      ho: a.ho,
-      name: maskName(a.residentName),
-      phoneTail: phoneTail(a.phone),
-    }));
+  const [appliedSnap, waitingSnap] = await Promise.all([
+    db.collection('applications').where('eventId', '==', eventId).where('status', '==', 'applied').get(),
+    db.collection('applications').where('eventId', '==', eventId).where('status', '==', 'waiting').get(),
+  ]);
 
-  return { applications };
+  // 신청순으로 정렬 후 1번부터 번호를 매겨, 몇 번째로 신청했는지 한눈에 볼 수 있게 합니다.
+  const applications = appliedSnap.docs.map((d) => d.data()).sort(byAppliedAt).map(maskEntry);
+  const waiting = waitingSnap.docs.map((d) => d.data()).sort(byAppliedAt).map(maskEntry);
+
+  return { applications, waiting };
 });
