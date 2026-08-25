@@ -70,8 +70,9 @@ export default function Login() {
             <label htmlFor="password">비밀번호 (숫자 4자리)</label>
             <input
               id="password"
-              type="password"
-              placeholder="숫자 4자리 (예: 1234)"
+              type="text"
+              className="pin-input"
+              placeholder="••••"
               value={form.password}
               onChange={(e) => updatePassword(e.target.value)}
               inputMode="numeric"
@@ -88,11 +89,11 @@ export default function Login() {
           </button>
         </form>
 
-        <p className="auth-hint">
-          처음 접속하시는 경우 입력하신 숫자 4자리 비밀번호로 자동 등록됩니다.<br />
-          이름과 연락처는 행사 신청 시 입력하시면 됩니다.<br />
-          동/호수가 등록되어 있지 않거나 비밀번호를 잊으셨다면 관리사무소로 문의해주세요.
-        </p>
+        <ul className="auth-hint">
+          <li>처음 접속하시는 경우 입력하신 숫자 4자리 비밀번호로 자동 등록됩니다.</li>
+          <li>이름과 연락처는 행사 신청 시 입력하시면 됩니다.</li>
+          <li>동/호수가 등록되어 있지 않거나 비밀번호를 잊으셨다면 관리사무소로 문의해주세요.</li>
+        </ul>
 
         <a className="admin-link" href="/admin/login">관리자 로그인</a>
       </div>

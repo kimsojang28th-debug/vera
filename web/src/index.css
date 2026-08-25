@@ -88,7 +88,27 @@ a { color: var(--color-primary); text-decoration: none; }
 }
 .auth-card h1 { margin: 0 0 4px; font-size: 1.3rem; color: var(--color-primary-dark); text-align: center; }
 .auth-subtitle { margin: 0 0 24px; text-align: center; color: var(--color-muted); }
-.auth-hint { margin-top: 16px; font-size: 0.8rem; color: var(--color-muted); line-height: 1.5; }
+.auth-hint {
+  margin: 18px 0 0;
+  padding: 14px 16px;
+  list-style: none;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  color: var(--color-muted);
+  line-height: 1.6;
+}
+.auth-hint li { position: relative; padding-left: 16px; }
+.auth-hint li + li { margin-top: 6px; }
+.auth-hint li::before {
+  content: '·';
+  position: absolute;
+  left: 2px;
+  color: var(--color-primary);
+  font-weight: 700;
+}
+.pin-input { letter-spacing: 6px; -webkit-text-security: disc; text-security: disc; }
 .admin-link { display: block; text-align: center; margin-top: 18px; font-size: 0.85rem; }
 
 .field { margin-bottom: 14px; display: flex; flex-direction: column; gap: 5px; }

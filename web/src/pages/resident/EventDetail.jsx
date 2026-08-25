@@ -209,7 +209,7 @@ export default function EventDetail() {
 
           <label className="checkbox-row">
             <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
-            (필수) 개인정보 수집·이용에 동의합니다. 수집항목: 동/호수, 이름, 연락처 / 목적: 행사 신청·운영 / 보유기간: 행사 종료 후 1년
+            (필수) 개인정보 수집·이용에 동의합니다. 수집항목: 동/호수, 이름, 연락처 / 목적: 행사 신청·운영
           </label>
 
           {error && <p className="form-error">{error}</p>}
