@@ -27,8 +27,10 @@ export default function MyApplications() {
           return app;
         })
     );
-    apps.sort((a, b) => (b.appliedAt?.toMillis?.() || 0) - (a.appliedAt?.toMillis?.() || 0));
-    setItems(apps);
+    // 관리자가 삭제한 행사에 연결된 신청 내역은 목록에 표시하지 않습니다.
+    const visible = apps.filter((app) => app.event !== null);
+    visible.sort((a, b) => (b.appliedAt?.toMillis?.() || 0) - (a.appliedAt?.toMillis?.() || 0));
+    setItems(visible);
     setLoading(false);
   }
 

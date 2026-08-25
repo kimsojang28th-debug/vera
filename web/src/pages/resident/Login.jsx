@@ -55,7 +55,7 @@ export default function Login() {
         <h1>래미안베라힐즈</h1>
         <p className="auth-subtitle">행사 신청 시스템</p>
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} autoComplete="off">
           <div className="field-row">
             <div className="field">
               <label htmlFor="dong">동</label>
@@ -76,6 +76,8 @@ export default function Login() {
               onChange={(e) => updatePassword(e.target.value)}
               inputMode="numeric"
               maxLength={4}
+              autoComplete="off"
+              data-lpignore="true"
             />
           </div>
 

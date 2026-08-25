@@ -208,12 +208,15 @@ export const cancelApplication = onCall(async (request) => {
     const wasApplied = app.status === 'applied';
 
     // Firestore 트랜잭션은 모든 읽기(get)가 모든 쓰기(update/set)보다 먼저 실행되어야 하므로,
-    // 대기자 조회는 취소 상태로 업데이트하기 "전"에 미리 수행합니다.
+    // 대기자 조회와 행사 문서 조회는 취소 상태로 업데이트하기 "전"에 미리 수행합니다.
     let waitingSnap = null;
+    let eventSnap = null;
+    const eventRef = db.doc(`events/${app.eventId}`);
     if (wasApplied) {
       waitingSnap = await tx.get(
         db.collection('applications').where('eventId', '==', app.eventId).where('status', '==', 'waiting')
       );
+      eventSnap = await tx.get(eventRef);
     }
 
     tx.update(appRef, { status: 'cancelled', cancelledAt: FieldValue.serverTimestamp() });
@@ -229,8 +232,9 @@ export const cancelApplication = onCall(async (request) => {
         const promote = sorted[0];
         tx.update(promote.ref, { status: 'applied', promotedAt: FieldValue.serverTimestamp() });
         // 취소 1명 + 승격 1명이므로 정원 카운트는 그대로 둡니다.
-      } else {
-        tx.update(db.doc(`events/${app.eventId}`), { appliedCount: FieldValue.increment(-1) });
+      } else if (eventSnap && eventSnap.exists) {
+        // 관리자가 행사 자체를 삭제한 경우에는 더 이상 존재하지 않는 문서라 업데이트할 대상이 없습니다.
+        tx.update(eventRef, { appliedCount: FieldValue.increment(-1) });
       }
     }
   });
