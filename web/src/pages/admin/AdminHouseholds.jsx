@@ -10,11 +10,22 @@ function normalizeUnit(raw) {
     .trim();
 }
 
-// 동/호수는 문자열로 저장되어 있어 그대로 정렬하면 "1001"이 "201"보다 앞에 오는 등
+// 동은 문자열로 저장되어 있어 그대로 정렬하면 "10"이 "9"보다 앞에 오는 등
 // 자릿수가 다른 값끼리 사전식(문자열) 정렬이 되어버립니다. 숫자로 변환해 크기순으로 비교합니다.
 function toNum(raw) {
   const n = Number(raw);
   return Number.isFinite(n) ? n : 0;
+}
+
+// 호수는 단순 숫자 크기순이 아니라, 아파트 호수 표기 관례(뒤 2자리 = 라인 번호, 그 앞 숫자 = 층수)에 맞춰
+// 같은 라인끼리 먼저 묶고, 그 안에서 층수 순으로 정렬해야 실제로 찾기 편합니다.
+// 예: 201호 → 라인 01, 층 2 / 1001호 → 라인 01, 층 10 (같은 1라인, 층수 순으로 201호가 먼저)
+//     209호 → 라인 09, 층 2 (1라인보다 뒤 라인이므로, 층수와 무관하게 301호(라인01)보다 뒤에 위치)
+function parseHo(raw) {
+  const digits = String(raw ?? '').replace(/\D/g, '');
+  if (!digits) return { line: 0, floor: 0 };
+  if (digits.length <= 2) return { line: Number(digits), floor: 0 };
+  return { line: Number(digits.slice(-2)), floor: Number(digits.slice(0, -2)) };
 }
 
 export default function AdminHouseholds() {
@@ -45,7 +56,11 @@ export default function AdminHouseholds() {
     return [...households].sort((a, b) => {
       const dongDiff = toNum(a.dong) - toNum(b.dong);
       if (dongDiff !== 0) return dongDiff;
-      return toNum(a.ho) - toNum(b.ho);
+      const hoA = parseHo(a.ho);
+      const hoB = parseHo(b.ho);
+      const lineDiff = hoA.line - hoB.line;
+      if (lineDiff !== 0) return lineDiff;
+      return hoA.floor - hoB.floor;
     });
   }, [households]);
 
