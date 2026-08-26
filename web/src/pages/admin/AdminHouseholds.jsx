@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { collection, deleteDoc, doc, getDoc, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
+import { useEffect, useMemo, useState } from 'react';
+import { collection, deleteDoc, doc, getDoc, onSnapshot, query, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 
 // 입력값 뒤에 "동"/"호"/"호수"가 붙어 있어도(예: "201동", "1001호") 숫자만 남기고 정리합니다.
@@ -8,6 +8,13 @@ function normalizeUnit(raw) {
     .trim()
     .replace(/(동|호수|호)\s*$/u, '')
     .trim();
+}
+
+// 동/호수는 문자열로 저장되어 있어 그대로 정렬하면 "1001"이 "201"보다 앞에 오는 등
+// 자릿수가 다른 값끼리 사전식(문자열) 정렬이 되어버립니다. 숫자로 변환해 크기순으로 비교합니다.
+function toNum(raw) {
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : 0;
 }
 
 export default function AdminHouseholds() {
@@ -20,15 +27,42 @@ export default function AdminHouseholds() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [selectedIds, setSelectedIds] = useState(new Set());
+  const [filterDong, setFilterDong] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [filterName, setFilterName] = useState('');
 
   useEffect(() => {
-    const q = query(collection(db, 'households'), orderBy('dong'));
+    // 동/호수 정렬은 숫자 크기순으로 화면에서 다시 정리하므로, 조회는 정렬 없이 가져옵니다.
+    const q = query(collection(db, 'households'));
     const unsub = onSnapshot(q, (snap) => {
       setHouseholds(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
       setLoading(false);
     });
     return unsub;
   }, []);
+
+  const sortedHouseholds = useMemo(() => {
+    return [...households].sort((a, b) => {
+      const dongDiff = toNum(a.dong) - toNum(b.dong);
+      if (dongDiff !== 0) return dongDiff;
+      return toNum(a.ho) - toNum(b.ho);
+    });
+  }, [households]);
+
+  const dongOptions = useMemo(() => {
+    return Array.from(new Set(households.map((h) => h.dong))).sort((a, b) => toNum(a) - toNum(b));
+  }, [households]);
+
+  const visibleHouseholds = useMemo(() => {
+    const nameKeyword = filterName.trim();
+    return sortedHouseholds.filter((h) => {
+      if (filterDong && h.dong !== filterDong) return false;
+      if (filterStatus === 'registered' && !h.isRegistered) return false;
+      if (filterStatus === 'unregistered' && h.isRegistered) return false;
+      if (nameKeyword && !(h.residentName || '').includes(nameKeyword)) return false;
+      return true;
+    });
+  }, [sortedHouseholds, filterDong, filterStatus, filterName]);
 
   async function addHousehold(dongRaw, hoRaw, nameVal) {
     const dongVal = normalizeUnit(dongRaw);
@@ -125,7 +159,10 @@ export default function AdminHouseholds() {
   }
 
   function toggleSelectAll() {
-    setSelectedIds((s) => (s.size === households.length ? new Set() : new Set(households.map((h) => h.id))));
+    setSelectedIds((s) => {
+      const allVisibleSelected = visibleHouseholds.length > 0 && visibleHouseholds.every((h) => s.has(h.id));
+      return allVisibleSelected ? new Set() : new Set(visibleHouseholds.map((h) => h.id));
+    });
   }
 
   async function handleBulkDelete() {
@@ -170,44 +207,79 @@ export default function AdminHouseholds() {
       ) : (
         <>
           {households.length > 0 && (
+            <div className="admin-panel filter-panel">
+              <h3>목록 필터</h3>
+              <div className="field-row">
+                <div className="field">
+                  <label>동</label>
+                  <select value={filterDong} onChange={(e) => setFilterDong(e.target.value)}>
+                    <option value="">전체</option>
+                    {dongOptions.map((d) => (
+                      <option key={d} value={d}>{d}동</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="field">
+                  <label>등록상태</label>
+                  <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
+                    <option value="all">전체</option>
+                    <option value="registered">등록완료만</option>
+                    <option value="unregistered">미등록만</option>
+                  </select>
+                </div>
+                <div className="field">
+                  <label>이름 검색</label>
+                  <input placeholder="성명으로 검색" value={filterName} onChange={(e) => setFilterName(e.target.value)} />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {households.length > 0 && (
             <div className="admin-toolbar">
+              <p className="muted">전체 {households.length}건 중 {visibleHouseholds.length}건 표시</p>
               <button className="btn btn-danger" onClick={handleBulkDelete} disabled={selectedIds.size === 0}>
                 선택 삭제 ({selectedIds.size}건)
               </button>
             </div>
           )}
-          <table>
-            <thead>
-              <tr>
-                <th>
-                  <input
-                    type="checkbox"
-                    checked={households.length > 0 && selectedIds.size === households.length}
-                    onChange={toggleSelectAll}
-                  />
-                </th>
-                <th>동</th><th>호수</th><th>성명</th><th>등록상태</th><th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {households.map((h) => (
-                <tr key={h.id}>
-                  <td>
-                    <input type="checkbox" checked={selectedIds.has(h.id)} onChange={() => toggleSelected(h.id)} />
-                  </td>
-                  <td>{h.dong}동</td>
-                  <td>{h.ho}호</td>
-                  <td>{h.residentName || '-'}</td>
-                  <td>{h.isRegistered ? '등록완료' : '미등록(비밀번호 대기)'}</td>
-                  <td className="table-actions">
-                    <button className="link-button" onClick={() => handleEditName(h.id, h.residentName)}>성명수정</button>
-                    {h.isRegistered && <button className="link-button" onClick={() => handleResetPassword(h.id)}>비번초기화</button>}
-                    <button className="link-button" onClick={() => handleDelete(h.id)}>삭제</button>
-                  </td>
+
+          {households.length > 0 && visibleHouseholds.length === 0 ? (
+            <p className="empty-state">필터 조건에 맞는 세대가 없습니다.</p>
+          ) : (
+            <table>
+              <thead>
+                <tr>
+                  <th>
+                    <input
+                      type="checkbox"
+                      checked={visibleHouseholds.length > 0 && visibleHouseholds.every((h) => selectedIds.has(h.id))}
+                      onChange={toggleSelectAll}
+                    />
+                  </th>
+                  <th>동</th><th>호수</th><th>성명</th><th>등록상태</th><th></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {visibleHouseholds.map((h) => (
+                  <tr key={h.id}>
+                    <td>
+                      <input type="checkbox" checked={selectedIds.has(h.id)} onChange={() => toggleSelected(h.id)} />
+                    </td>
+                    <td>{h.dong}동</td>
+                    <td>{h.ho}호</td>
+                    <td>{h.residentName || '-'}</td>
+                    <td>{h.isRegistered ? '등록완료' : '미등록(비밀번호 대기)'}</td>
+                    <td className="table-actions">
+                      <button className="link-button" onClick={() => handleEditName(h.id, h.residentName)}>성명수정</button>
+                      {h.isRegistered && <button className="link-button" onClick={() => handleResetPassword(h.id)}>비번초기화</button>}
+                      <button className="link-button" onClick={() => handleDelete(h.id)}>삭제</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </>
       )}
     </div>
