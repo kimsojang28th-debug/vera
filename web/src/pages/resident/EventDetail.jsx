@@ -21,7 +21,7 @@ export default function EventDetail() {
 
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [myApplication, setMyApplication] = useState(null);
+  const [myApplications, setMyApplications] = useState([]);
   const [statusList, setStatusList] = useState([]);
   const [waitingList, setWaitingList] = useState([]);
   const [residentName, setResidentName] = useState('');
@@ -29,7 +29,13 @@ export default function EventDetail() {
   const [answers, setAnswers] = useState({});
   const [agreed, setAgreed] = useState(false);
   const [error, setError] = useState('');
+  const [submitMessage, setSubmitMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  const loadEvent = useCallback(async () => {
+    const snap = await getDoc(doc(db, 'events', eventId));
+    if (snap.exists()) setEvent({ id: snap.id, ...snap.data() });
+  }, [eventId]);
 
   const loadStatusList = useCallback(async () => {
     try {
@@ -42,33 +48,35 @@ export default function EventDetail() {
     }
   }, [eventId]);
 
+  const loadMyApplications = useCallback(async () => {
+    const myQ = query(
+      collection(db, 'applications'),
+      where('eventId', '==', eventId),
+      where('householdId', '==', user.uid)
+    );
+    const myApps = await getDocs(myQ);
+    const active = myApps.docs
+      .map((d) => ({ id: d.id, ...d.data() }))
+      .filter((a) => ['applied', 'waiting'].includes(a.status));
+    setMyApplications(active);
+  }, [eventId, user.uid]);
+
   useEffect(() => {
     async function load() {
-      const snap = await getDoc(doc(db, 'events', eventId));
-      if (snap.exists()) setEvent({ id: snap.id, ...snap.data() });
-
-      const myQ = query(
-        collection(db, 'applications'),
-        where('eventId', '==', eventId),
-        where('householdId', '==', user.uid)
-      );
-      const myApps = await getDocs(myQ);
-      const active = myApps.docs.find((d) => ['applied', 'waiting'].includes(d.data().status));
-      if (active) {
-        setMyApplication({ id: active.id, ...active.data() });
-      }
-
+      await loadEvent();
+      await loadMyApplications();
       await loadStatusList();
       setLoading(false);
     }
     load();
-  }, [eventId, user.uid, loadStatusList]);
+  }, [loadEvent, loadMyApplications, loadStatusList]);
 
   if (loading) return <div className="page-loading">불러오는 중...</div>;
   if (!event) return <p className="empty-state">존재하지 않는 행사입니다.</p>;
 
   const status = getEventStatus(event);
-  const canApply = isApplyOpen(event) && !myApplication;
+  const multiPerHousehold = event.multiPerHousehold === true;
+  const canApply = isApplyOpen(event) && (multiPerHousehold || myApplications.length === 0);
   const full = isEventFull(event);
   const extraFields = event.extraFields || [];
 
@@ -79,6 +87,7 @@ export default function EventDetail() {
   async function handleApply(e) {
     e.preventDefault();
     setError('');
+    setSubmitMessage('');
     if (!residentName.trim()) {
       setError('이름을 입력해주세요.');
       return;
@@ -101,9 +110,21 @@ export default function EventDetail() {
     setSubmitting(true);
     try {
       const applyToEvent = httpsCallable(functions, 'applyToEvent');
-      await applyToEvent({ eventId, answers, residentName: residentName.trim(), phone });
-      await loadStatusList();
-      navigate('/my');
+      const appliedName = residentName.trim();
+      await applyToEvent({ eventId, answers, residentName: appliedName, phone });
+
+      if (multiPerHousehold) {
+        // 가족 여러 명이 이어서 신청할 수 있도록 페이지를 벗어나지 않고 폼을 초기화합니다.
+        setResidentName('');
+        setPhone('');
+        setAnswers({});
+        setAgreed(false);
+        setSubmitMessage(`${appliedName}님 신청이 완료되었습니다. 다른 가족이 더 신청하시려면 아래에 이어서 입력해주세요.`);
+        await Promise.all([loadEvent(), loadMyApplications(), loadStatusList()]);
+      } else {
+        await loadStatusList();
+        navigate('/my');
+      }
     } catch (err) {
       setError(err.message?.replace(/^\S+:\s*/, '') || '신청 중 오류가 발생했습니다.');
     } finally {
@@ -135,18 +156,32 @@ export default function EventDetail() {
 
       {event.groupId && (
         <div className="notice-box notice-box-muted">
-          이 행사는 같은 그룹의 다른 날짜와 묶여 있어, 그 중 하루만 신청하실 수 있습니다.
+          이 행사는 같은 그룹의 다른 날짜와 묶여 있어, {multiPerHousehold ? '한 분당 그 중 하루만' : '그 중 하루만'} 신청하실 수 있습니다.
         </div>
       )}
 
-      {myApplication ? (
+      {multiPerHousehold && (
+        <div className="notice-box notice-box-muted">
+          이 행사는 한 세대에서 가족 여러 명이 각자 신청하실 수 있습니다. 신청하시는 분마다 이름과 연락처를 입력해주세요.
+        </div>
+      )}
+
+      {multiPerHousehold && myApplications.length > 0 && (
+        <div className="notice-box notice-box-muted">
+          우리 세대에서 이미 신청하신 분: {myApplications.map((a) => `${a.residentName}(${a.status === 'waiting' ? '대기중' : '신청완료'})`).join(', ')}
+        </div>
+      )}
+
+      {submitMessage && <div className="notice-box">{submitMessage}</div>}
+
+      {!isApplyOpen(event) ? (
+        <div className="notice-box">현재 신청할 수 없는 행사입니다.</div>
+      ) : !multiPerHousehold && myApplications.length > 0 ? (
         <div className="notice-box">
-          {myApplication.status === 'waiting'
+          {myApplications[0].status === 'waiting'
             ? '대기 신청 상태입니다. 자리가 나면 순서대로 자동으로 신청 확정됩니다. "나의 신청내역"에서 확인·취소하실 수 있습니다.'
             : '이미 신청하셨습니다. "나의 신청내역"에서 수정 또는 취소하실 수 있습니다.'}
         </div>
-      ) : !isApplyOpen(event) ? (
-        <div className="notice-box">현재 신청할 수 없는 행사입니다.</div>
       ) : (
         <form className="application-form" onSubmit={handleApply}>
           <h3>신청서</h3>

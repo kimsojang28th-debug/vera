@@ -18,6 +18,7 @@ const emptyEvent = {
   bannerImageUrl: '',
   groupId: '',
   groupTitle: '',
+  multiPerHousehold: false,
 };
 
 const BANNER_WIDTH = 1200;
@@ -103,6 +104,7 @@ export default function AdminEventForm() {
           bannerImageUrl: data.bannerImageUrl || '',
           groupId: data.groupId || '',
           groupTitle: data.groupTitle || '',
+          multiPerHousehold: data.multiPerHousehold === true,
         });
         setExtraFields(data.extraFields || []);
       }
@@ -172,6 +174,7 @@ export default function AdminEventForm() {
       bannerImageUrl: form.bannerImageUrl,
       groupId: form.groupId.trim(),
       groupTitle: form.groupTitle.trim(),
+      multiPerHousehold: form.multiPerHousehold === true,
       extraFields: extraFields
         .filter((f) => f.label)
         .map((f) => ({
@@ -276,6 +279,21 @@ export default function AdminEventForm() {
               <option value="closed">마감(공개, 신청불가)</option>
             </select>
           </div>
+        </div>
+
+        <div className="field">
+          <label>1세대당 신청 인원</label>
+          <select
+            value={form.multiPerHousehold ? 'multi' : 'single'}
+            onChange={(e) => update('multiPerHousehold', e.target.value === 'multi')}
+          >
+            <option value="single">1명만 신청 가능 (기본)</option>
+            <option value="multi">가족 여러 명 각자 신청 가능</option>
+          </select>
+          <p className="muted field-help">
+            "가족 여러 명 각자 신청 가능"으로 설정하면, 같은 세대에서도 이름·연락처가 다른 가족 구성원이 각자 신청서를 제출할 수 있습니다.
+            (이름과 연락처가 모두 같은 경우에만 중복 신청으로 처리됩니다.)
+          </p>
         </div>
 
         <div className="field-row">

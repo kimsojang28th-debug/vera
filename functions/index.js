@@ -115,10 +115,14 @@ export const applyToEvent = onCall(async (request) => {
   }
 
   const [dong, ho] = uid.split('-');
+  const nameNorm = String(residentName).trim();
+  const phoneNorm = String(phone).trim();
+  const isSamePerson = (d) => (d.residentName || '').trim() === nameNorm && (d.phone || '').trim() === phoneNorm;
 
   const eventSnapPre = await db.doc(`events/${eventId}`).get();
   if (!eventSnapPre.exists) throw new HttpsError('not-found', '존재하지 않는 행사입니다.');
   const eventPre = eventSnapPre.data();
+  const multiPerHousehold = eventPre.multiPerHousehold === true;
 
   // 같은 그룹(예: 이틀 중 하루만 신청 가능)의 다른 행사에 이미 신청했는지 확인
   if (eventPre.groupId) {
@@ -129,7 +133,12 @@ export const applyToEvent = onCall(async (request) => {
       .where('householdId', '==', uid)
       .where('status', '==', 'applied')
       .get();
-    const conflict = appliedSnap.docs.some((d) => siblingIds.includes(d.data().eventId));
+    const conflict = appliedSnap.docs.some((d) => {
+      const dd = d.data();
+      if (!siblingIds.includes(dd.eventId)) return false;
+      // 세대당 여러 명 신청이 가능한 행사는, 같은 사람이 다른 날짜에 이미 신청했을 때만 충돌로 봅니다.
+      return multiPerHousehold ? isSamePerson(dd) : true;
+    });
     if (conflict) {
       throw new HttpsError('already-exists', '같은 그룹의 다른 날짜에 이미 신청하셨습니다.');
     }
@@ -141,7 +150,13 @@ export const applyToEvent = onCall(async (request) => {
     .where('eventId', '==', eventId)
     .where('householdId', '==', uid)
     .get();
-  if (existing.docs.some((d) => ['applied', 'waiting'].includes(d.data().status))) {
+  const activeExisting = existing.docs.map((d) => d.data()).filter((d) => ['applied', 'waiting'].includes(d.status));
+  if (multiPerHousehold) {
+    // 가족 여러 명 신청 가능: 이름과 연락처가 모두 같은 사람만 중복 신청으로 처리합니다.
+    if (activeExisting.some(isSamePerson)) {
+      throw new HttpsError('already-exists', '이미 신청하셨습니다.');
+    }
+  } else if (activeExisting.length > 0) {
     throw new HttpsError('already-exists', '이미 신청(또는 대기신청)한 행사입니다.');
   }
 

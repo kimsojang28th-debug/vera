@@ -43,7 +43,7 @@ export default function AdminEvents() {
         <table>
           <thead>
             <tr>
-              <th>행사명</th><th>그룹</th><th>상태</th><th>접수기간</th><th>정원</th><th></th>
+              <th>행사명</th><th>그룹</th><th>세대당인원</th><th>상태</th><th>접수기간</th><th>정원</th><th></th>
             </tr>
           </thead>
           <tbody>
@@ -53,6 +53,7 @@ export default function AdminEvents() {
                 <tr key={e.id}>
                   <td>{e.title}</td>
                   <td>{e.groupId ? (e.groupTitle || e.groupId) : '-'}</td>
+                  <td>{e.multiPerHousehold ? '가족 여러 명' : '1명'}</td>
                   <td><span className={`badge badge-${status.tone}`}>{status.label}</span></td>
                   <td>{formatDateTime(e.applyStart)} ~ {formatDateTime(e.applyEnd)}</td>
                   <td>{e.appliedCount ?? 0} / {e.capacity}</td>

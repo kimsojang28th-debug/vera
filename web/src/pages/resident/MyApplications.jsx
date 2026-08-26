@@ -90,6 +90,7 @@ export default function MyApplications() {
               {app.event && (
                 <p className="muted">{formatDateTime(app.event.eventStart)} · {app.event.place}</p>
               )}
+              {app.residentName && <p className="muted">신청자: {app.residentName}</p>}
               <p className="muted">신청일시: {formatDateTime(app.appliedAt)}</p>
               {app.status === 'waiting' && (
                 <p className="muted small-note">자리가 나면 대기 순서대로 자동으로 신청 확정됩니다.</p>
