@@ -41,10 +41,18 @@ export default function AdminApplications() {
   const selectedEvent = events.find((e) => e.id === selectedEventId);
   const extraFields = selectedEvent?.extraFields || [];
 
+  // 취소건은 대기열에 없었으므로 번호를 매기지 않고, 신청/대기 건만 신청순으로 1번부터 번호를 매깁니다.
+  let seq = 0;
+  const numberedApplications = applications.map((a) => ({
+    ...a,
+    seq: a.status === 'cancelled' ? null : ++seq,
+  }));
+
   function handleExport() {
-    const headers = ['동', '호수', '성명', '연락처', '상태', '신청일시', ...extraFields.map((f) => f.label)];
-    const rows = applications.map((a) => {
+    const headers = ['번호', '동', '호수', '성명', '연락처', '상태', '신청일시', ...extraFields.map((f) => f.label)];
+    const rows = numberedApplications.map((a) => {
       const row = {
+        '번호': a.seq ?? '-',
         '동': a.dong,
         '호수': a.ho,
         '성명': a.residentName || '',
@@ -85,13 +93,14 @@ export default function AdminApplications() {
         <table>
           <thead>
             <tr>
-              <th>동</th><th>호수</th><th>성명</th><th>연락처</th><th>상태</th><th>신청일시</th>
+              <th>번호</th><th>동</th><th>호수</th><th>성명</th><th>연락처</th><th>상태</th><th>신청일시</th>
               {extraFields.map((f) => <th key={f.id}>{f.label}</th>)}
             </tr>
           </thead>
           <tbody>
-            {applications.map((a) => (
+            {numberedApplications.map((a) => (
               <tr key={a.id}>
+                <td>{a.seq ?? '-'}</td>
                 <td>{a.dong}동</td>
                 <td>{a.ho}호</td>
                 <td>{a.residentName || '-'}</td>
