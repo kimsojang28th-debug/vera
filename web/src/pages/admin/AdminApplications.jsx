@@ -10,7 +10,7 @@ export default function AdminApplications() {
   const [events, setEvents] = useState([]);
   const [selectedEventId, setSelectedEventId] = useState('');
   const [applications, setApplications] = useState([]);
-  const [includeCancelled, setIncludeCancelled] = useState(false);
+  const [statusFilter, setStatusFilter] = useState('active'); // 'active' | 'cancelled' | 'all'
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -31,12 +31,13 @@ export default function AdminApplications() {
       const q = query(collection(db, 'applications'), where('eventId', '==', selectedEventId));
       const snap = await getDocs(q);
       let apps = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      if (!includeCancelled) apps = apps.filter((a) => a.status !== 'cancelled');
+      if (statusFilter === 'active') apps = apps.filter((a) => a.status !== 'cancelled');
+      else if (statusFilter === 'cancelled') apps = apps.filter((a) => a.status === 'cancelled');
       apps.sort((a, b) => (a.appliedAt?.toMillis?.() || 0) - (b.appliedAt?.toMillis?.() || 0)); // 입주민 신청현황(가장 먼저 신청한 순)과 동일하게 정렬
       setApplications(apps);
       setLoading(false);
     })();
-  }, [selectedEventId, includeCancelled]);
+  }, [selectedEventId, statusFilter]);
 
   const selectedEvent = events.find((e) => e.id === selectedEventId);
   const extraFields = selectedEvent?.extraFields || [];
@@ -78,10 +79,20 @@ export default function AdminApplications() {
             <option key={e.id} value={e.id}>{e.title}</option>
           ))}
         </select>
-        <label className="checkbox-inline">
-          <input type="checkbox" checked={includeCancelled} onChange={(e) => setIncludeCancelled(e.target.checked)} />
-          취소건 포함
-        </label>
+        <div className="radio-group">
+          <label className="checkbox-inline">
+            <input type="radio" name="statusFilter" checked={statusFilter === 'active'} onChange={() => setStatusFilter('active')} />
+            신청 건
+          </label>
+          <label className="checkbox-inline">
+            <input type="radio" name="statusFilter" checked={statusFilter === 'cancelled'} onChange={() => setStatusFilter('cancelled')} />
+            취소 건
+          </label>
+          <label className="checkbox-inline">
+            <input type="radio" name="statusFilter" checked={statusFilter === 'all'} onChange={() => setStatusFilter('all')} />
+            전체(신청+취소)
+          </label>
+        </div>
         <button className="btn" onClick={handleExport} disabled={applications.length === 0}>CSV(엑셀) 다운로드</button>
       </div>
 
