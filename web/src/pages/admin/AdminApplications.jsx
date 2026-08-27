@@ -32,7 +32,7 @@ export default function AdminApplications() {
       const snap = await getDocs(q);
       let apps = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
       if (!includeCancelled) apps = apps.filter((a) => a.status !== 'cancelled');
-      apps.sort((a, b) => (b.appliedAt?.toMillis?.() || 0) - (a.appliedAt?.toMillis?.() || 0));
+      apps.sort((a, b) => (a.appliedAt?.toMillis?.() || 0) - (b.appliedAt?.toMillis?.() || 0)); // 입주민 신청현황(가장 먼저 신청한 순)과 동일하게 정렬
       setApplications(apps);
       setLoading(false);
     })();
