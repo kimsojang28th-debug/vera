@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { IconBuilding } from './icons';
 
 export default function AdminLayout() {
   const { user, signOut } = useAuth();
@@ -13,7 +14,7 @@ export default function AdminLayout() {
   return (
     <div className="app-shell">
       <header className="top-nav">
-        <span className="brand">관리자 모드</span>
+        <span className="brand"><IconBuilding size={20} />관리자 모드</span>
         <nav>
           <NavLink to="/admin/events">행사배너 관리</NavLink>
           <NavLink to="/admin/applications">신청현황</NavLink>

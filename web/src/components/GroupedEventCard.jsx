@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { formatDateTime, getEventStatus, isEventFull } from '../utils/format';
+import { formatDateTime, getCapacityPercent, getEventStatus, isEventFull } from '../utils/format';
 
 // 이틀 등 여러 날짜 중 하루만 신청 가능한 행사를 하나의 카드로 묶어 보여줍니다.
 export default function GroupedEventCard({ groupId, groupTitle, events }) {
@@ -8,6 +8,7 @@ export default function GroupedEventCard({ groupId, groupTitle, events }) {
   const [selectedId, setSelectedId] = useState(events[0]?.id);
   const selected = events.find((e) => e.id === selectedId) || events[0];
   const status = getEventStatus(selected);
+  const percent = getCapacityPercent(selected);
 
   return (
     <div className="event-card event-card-grouped">
@@ -38,6 +39,11 @@ export default function GroupedEventCard({ groupId, groupTitle, events }) {
               </span>
             </label>
           ))}
+        </div>
+
+        <div className="capacity-row">
+          <div className="capacity-track"><div className="capacity-fill" style={{ width: `${percent}%` }} /></div>
+          <span className="capacity-label">{selected.appliedCount ?? 0}/{selected.capacity}명</span>
         </div>
 
         <button

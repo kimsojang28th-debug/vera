@@ -1,5 +1,6 @@
 import { Link, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { IconBuilding } from './icons';
 
 export default function ResidentLayout() {
   const { household, signOut } = useAuth();
@@ -13,7 +14,10 @@ export default function ResidentLayout() {
   return (
     <div className="app-shell">
       <header className="top-nav">
-        <Link to="/events" className="brand">래미안베라힐즈 행사신청</Link>
+        <Link to="/events" className="brand">
+          <IconBuilding size={20} className="brand-icon" />
+          래미안베라힐즈 행사신청
+        </Link>
         <nav>
           <Link to="/events">행사목록</Link>
           <Link to="/my">나의 신청내역</Link>

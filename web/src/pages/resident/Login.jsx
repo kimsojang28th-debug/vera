@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { httpsCallable } from 'firebase/functions';
 import { signInWithCustomToken } from 'firebase/auth';
 import { auth, functions } from '../../firebase';
+import { IconBuilding } from '../../components/icons';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -51,51 +52,56 @@ export default function Login() {
 
   return (
     <div className="auth-page">
-      <div className="auth-card">
-        <h1>래미안베라힐즈</h1>
-        <p className="auth-subtitle">행사 신청 시스템</p>
+      <div style={{ width: '100%', maxWidth: 380 }}>
+        <div className="auth-logo">
+          <IconBuilding size={30} />
+        </div>
+        <div className="auth-card">
+          <h1>래미안베라힐즈</h1>
+          <p className="auth-subtitle">행사 신청 시스템</p>
 
-        <form onSubmit={handleSubmit} autoComplete="off">
-          <div className="field-row">
-            <div className="field">
-              <label htmlFor="dong">동</label>
-              <input id="dong" placeholder="예: 101" value={form.dong} onChange={(e) => update('dong', e.target.value)} inputMode="numeric" />
+          <form onSubmit={handleSubmit} autoComplete="off">
+            <div className="field-row">
+              <div className="field">
+                <label htmlFor="dong">동</label>
+                <input id="dong" placeholder="예: 101" value={form.dong} onChange={(e) => update('dong', e.target.value)} inputMode="numeric" />
+              </div>
+              <div className="field">
+                <label htmlFor="ho">호수</label>
+                <input id="ho" placeholder="예: 1502" value={form.ho} onChange={(e) => update('ho', e.target.value)} inputMode="numeric" />
+              </div>
             </div>
             <div className="field">
-              <label htmlFor="ho">호수</label>
-              <input id="ho" placeholder="예: 1502" value={form.ho} onChange={(e) => update('ho', e.target.value)} inputMode="numeric" />
+              <label htmlFor="password">비밀번호 (숫자 4자리)</label>
+              <input
+                id="password"
+                type="text"
+                className="pin-input"
+                placeholder="••••"
+                value={form.password}
+                onChange={(e) => updatePassword(e.target.value)}
+                inputMode="numeric"
+                maxLength={4}
+                autoComplete="off"
+                data-lpignore="true"
+              />
             </div>
-          </div>
-          <div className="field">
-            <label htmlFor="password">비밀번호 (숫자 4자리)</label>
-            <input
-              id="password"
-              type="text"
-              className="pin-input"
-              placeholder="••••"
-              value={form.password}
-              onChange={(e) => updatePassword(e.target.value)}
-              inputMode="numeric"
-              maxLength={4}
-              autoComplete="off"
-              data-lpignore="true"
-            />
-          </div>
 
-          {error && <p className="form-error">{error}</p>}
+            {error && <p className="form-error">{error}</p>}
 
-          <button type="submit" className="btn btn-primary btn-block" disabled={submitting}>
-            {submitting ? '확인 중...' : '입장하기'}
-          </button>
-        </form>
+            <button type="submit" className="btn btn-primary btn-block" disabled={submitting}>
+              {submitting ? '확인 중...' : '입장하기'}
+            </button>
+          </form>
 
-        <ul className="auth-hint">
-          <li>처음 접속하시는 경우 입력하신 숫자 4자리 비밀번호로 자동 등록됩니다.</li>
-          <li>이름과 연락처는 행사 신청 시 입력하시면 됩니다.</li>
-          <li>동/호수가 등록되어 있지 않거나 비밀번호를 잊으셨다면 관리사무소로 문의해주세요.</li>
-        </ul>
+          <ul className="auth-hint">
+            <li>처음 접속하시는 경우 입력하신 숫자 4자리 비밀번호로 자동 등록됩니다.</li>
+            <li>이름과 연락처는 행사 신청 시 입력하시면 됩니다.</li>
+            <li>동/호수가 등록되어 있지 않거나 비밀번호를 잊으셨다면 관리사무소로 문의해주세요.</li>
+          </ul>
 
-        <a className="admin-link" href="/admin/login">관리자 로그인</a>
+          <a className="admin-link" href="/admin/login">관리자 로그인</a>
+        </div>
       </div>
     </div>
   );

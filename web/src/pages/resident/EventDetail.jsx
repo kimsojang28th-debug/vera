@@ -4,7 +4,8 @@ import { doc, getDoc, getDocs, query, collection, where } from 'firebase/firesto
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../../firebase';
 import { useAuth } from '../../contexts/AuthContext';
-import { formatDateTime, getEventStatus, isApplyOpen, isEventFull } from '../../utils/format';
+import { formatDateTime, getCapacityPercent, getEventStatus, isApplyOpen, isEventFull } from '../../utils/format';
+import { IconCalendar, IconPin } from '../../components/icons';
 
 // 숫자만 남기고 010-0000-0000 형식으로 자동 정리합니다.
 function formatPhone(raw) {
@@ -75,6 +76,7 @@ export default function EventDetail() {
   if (!event) return <p className="empty-state">존재하지 않는 행사입니다.</p>;
 
   const status = getEventStatus(event);
+  const percent = getCapacityPercent(event);
   const multiPerHousehold = event.multiPerHousehold === true;
   const canApply = isApplyOpen(event) && (multiPerHousehold || myApplications.length === 0);
   const full = isEventFull(event);
@@ -146,11 +148,15 @@ export default function EventDetail() {
           {event.description && <p className="event-description">{event.description}</p>}
 
           <dl className="event-detail-meta">
-            <div><dt>행사일시</dt><dd>{formatDateTime(event.eventStart)} ~ {formatDateTime(event.eventEnd)}</dd></div>
-            <div><dt>장소</dt><dd>{event.place}</dd></div>
-            <div><dt>접수기간</dt><dd>{formatDateTime(event.applyStart)} ~ {formatDateTime(event.applyEnd)}</dd></div>
+            <div><dt><IconCalendar />행사일시</dt><dd>{formatDateTime(event.eventStart)} ~ {formatDateTime(event.eventEnd)}</dd></div>
+            <div><dt><IconPin />장소</dt><dd>{event.place}</dd></div>
+            <div><dt><IconCalendar />접수기간</dt><dd>{formatDateTime(event.applyStart)} ~ {formatDateTime(event.applyEnd)}</dd></div>
             <div><dt>정원</dt><dd>{event.appliedCount ?? 0} / {event.capacity}명</dd></div>
           </dl>
+          <div className="capacity-row">
+            <div className="capacity-track"><div className="capacity-fill" style={{ width: `${percent}%` }} /></div>
+            <span className="capacity-label">{percent}%</span>
+          </div>
         </div>
       </div>
 

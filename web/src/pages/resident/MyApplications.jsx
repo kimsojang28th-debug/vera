@@ -83,7 +83,7 @@ export default function MyApplications() {
         <div className="my-application-list">
           {items.map((app) => (
             <div key={app.id} className="my-application-card">
-              <span className={`badge badge-${app.status === 'waiting' ? 'muted' : 'open'}`}>
+              <span className={`badge badge-${app.status === 'waiting' ? 'waiting' : 'open'}`}>
                 {app.status === 'waiting' ? '대기중' : '신청완료'}
               </span>
               <h3>{app.event?.title || '(삭제된 행사)'}</h3>
