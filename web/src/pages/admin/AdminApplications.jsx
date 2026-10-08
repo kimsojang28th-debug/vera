@@ -5,6 +5,7 @@ import { formatDateTime } from '../../utils/format';
 import { downloadCsv } from '../../utils/csv';
 
 const STATUS_LABEL = { applied: '신청', waiting: '대기', cancelled: '취소' };
+const LOTTERY_STATUS_LABEL = { ...STATUS_LABEL, applied: '접수' };
 
 export default function AdminApplications() {
   const [events, setEvents] = useState([]);
@@ -41,6 +42,8 @@ export default function AdminApplications() {
 
   const selectedEvent = events.find((e) => e.id === selectedEventId);
   const extraFields = selectedEvent?.extraFields || [];
+  const isLotteryEvent = selectedEvent?.selectionMethod === 'lottery';
+  const statusLabel = isLotteryEvent ? LOTTERY_STATUS_LABEL : STATUS_LABEL;
 
   // 취소건은 대기열에 없었으므로 번호를 매기지 않고, 신청/대기 건만 신청순으로 1번부터 번호를 매깁니다.
   let seq = 0;
@@ -58,7 +61,7 @@ export default function AdminApplications() {
         '호수': a.ho,
         '성명': a.residentName || '',
         '연락처': a.phone,
-        '상태': STATUS_LABEL[a.status] || a.status,
+        '상태': statusLabel[a.status] || a.status,
         '신청일시': formatDateTime(a.appliedAt),
       };
       extraFields.forEach((f) => {
@@ -93,6 +96,11 @@ export default function AdminApplications() {
             전체(신청+취소)
           </label>
         </div>
+        {isLotteryEvent && (
+          <span className="muted">
+            추첨 행사 · 접수 {selectedEvent.appliedCount ?? 0}명 / 선발 {selectedEvent.capacity}명
+          </span>
+        )}
         <button className="btn" onClick={handleExport} disabled={applications.length === 0}>CSV(엑셀) 다운로드</button>
       </div>
 
@@ -116,7 +124,7 @@ export default function AdminApplications() {
                 <td>{a.ho}호</td>
                 <td>{a.residentName || '-'}</td>
                 <td>{a.phone}</td>
-                <td>{STATUS_LABEL[a.status] || a.status}</td>
+                <td>{statusLabel[a.status] || a.status}</td>
                 <td>{formatDateTime(a.appliedAt)}</td>
                 {extraFields.map((f) => <td key={f.id}>{a.answers?.[f.id] || '-'}</td>)}
               </tr>

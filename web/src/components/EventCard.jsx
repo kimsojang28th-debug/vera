@@ -1,10 +1,11 @@
 import { Link } from 'react-router-dom';
-import { formatDateTime, getCapacityPercent, getEventStatus } from '../utils/format';
+import { formatDateTime, getCapacityPercent, getCapacityText, getEventStatus, isLottery } from '../utils/format';
 import { IconCalendar, IconPin } from './icons';
 
 export default function EventCard({ event }) {
   const status = getEventStatus(event);
-  const percent = getCapacityPercent(event);
+  const lottery = isLottery(event);
+  const percent = lottery ? 100 : getCapacityPercent(event);
   return (
     <Link to={`/events/${event.id}`} className="event-card">
       {event.bannerImageUrl ? (
@@ -23,8 +24,8 @@ export default function EventCard({ event }) {
           <div><dt>접수기간</dt><dd>{formatDateTime(event.applyStart)} ~ {formatDateTime(event.applyEnd)}</dd></div>
         </dl>
         <div className="capacity-row">
-          <div className="capacity-track"><div className="capacity-fill" style={{ width: `${percent}%` }} /></div>
-          <span className="capacity-label">{event.appliedCount ?? 0}/{event.capacity}명</span>
+          <div className="capacity-track"><div className={`capacity-fill${lottery ? ' capacity-fill-lottery' : ''}`} style={{ width: `${percent}%` }} /></div>
+          <span className="capacity-label">{getCapacityText(event)}</span>
         </div>
       </div>
     </Link>

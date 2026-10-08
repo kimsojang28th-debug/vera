@@ -176,7 +176,9 @@ export const applyToEvent = onCall(async (request) => {
     if (event.status !== 'open') throw new HttpsError('failed-precondition', '현재 신청을 받지 않는 행사입니다.');
     if (now < applyStart || now > applyEnd) throw new HttpsError('failed-precondition', '신청 기간이 아닙니다.');
 
-    const isFull = (event.appliedCount || 0) >= event.capacity;
+    // 추첨 행사는 접수 마감까지 정원과 관계없이 모두 접수합니다(대기 전환 없음).
+    const isLottery = event.selectionMethod === 'lottery';
+    const isFull = !isLottery && (event.appliedCount || 0) >= event.capacity;
     waitlisted = isFull;
 
     if (!isFull) {

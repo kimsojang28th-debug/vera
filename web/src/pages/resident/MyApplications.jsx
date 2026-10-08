@@ -3,7 +3,7 @@ import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firesto
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../../firebase';
 import { useAuth } from '../../contexts/AuthContext';
-import { formatDateTime } from '../../utils/format';
+import { formatDateTime, isLottery } from '../../utils/format';
 
 export default function MyApplications() {
   const { user } = useAuth();
@@ -84,7 +84,7 @@ export default function MyApplications() {
           {items.map((app) => (
             <div key={app.id} className="my-application-card">
               <span className={`badge badge-${app.status === 'waiting' ? 'waiting' : 'open'}`}>
-                {app.status === 'waiting' ? '대기중' : '신청완료'}
+                {app.status === 'waiting' ? '대기중' : isLottery(app.event) ? '접수완료' : '신청완료'}
               </span>
               <h3>{app.event?.title || '(삭제된 행사)'}</h3>
               {app.event && (
@@ -92,6 +92,9 @@ export default function MyApplications() {
               )}
               {app.residentName && <p className="muted">신청자: {app.residentName}</p>}
               <p className="muted">신청일시: {formatDateTime(app.appliedAt)}</p>
+              {isLottery(app.event) && app.status !== 'waiting' && (
+                <p className="muted small-note">추첨 행사입니다. 접수 마감 후 추첨으로 선발되며, 결과는 별도로 안내됩니다.</p>
+              )}
               {app.status === 'waiting' && (
                 <p className="muted small-note">자리가 나면 대기 순서대로 자동으로 신청 확정됩니다.</p>
               )}

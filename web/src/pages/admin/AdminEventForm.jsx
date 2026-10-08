@@ -19,6 +19,7 @@ const emptyEvent = {
   groupId: '',
   groupTitle: '',
   multiPerHousehold: false,
+  selectionMethod: 'fcfs',
 };
 
 const BANNER_WIDTH = 1200;
@@ -105,6 +106,8 @@ export default function AdminEventForm() {
           groupId: data.groupId || '',
           groupTitle: data.groupTitle || '',
           multiPerHousehold: data.multiPerHousehold === true,
+          selectionMethod: data.selectionMethod === 'lottery' ? 'lottery' : 'fcfs',
+          appliedCount: data.appliedCount || 0,
         });
         setExtraFields(data.extraFields || []);
       }
@@ -175,6 +178,7 @@ export default function AdminEventForm() {
       groupId: form.groupId.trim(),
       groupTitle: form.groupTitle.trim(),
       multiPerHousehold: form.multiPerHousehold === true,
+      selectionMethod: form.selectionMethod === 'lottery' ? 'lottery' : 'fcfs',
       extraFields: extraFields
         .filter((f) => f.label)
         .map((f) => ({
@@ -268,7 +272,7 @@ export default function AdminEventForm() {
 
         <div className="field-row">
           <div className="field">
-            <label>정원 *</label>
+            <label>{form.selectionMethod === 'lottery' ? '선발 인원 *' : '정원 *'}</label>
             <input type="number" min="1" value={form.capacity} onChange={(e) => update('capacity', e.target.value)} />
           </div>
           <div className="field">
@@ -279,6 +283,24 @@ export default function AdminEventForm() {
               <option value="closed">마감(공개, 신청불가)</option>
             </select>
           </div>
+        </div>
+
+        <div className="field">
+          <label>모집 방식</label>
+          <select
+            value={form.selectionMethod}
+            onChange={(e) => update('selectionMethod', e.target.value)}
+            disabled={(form.appliedCount || 0) > 0}
+          >
+            <option value="fcfs">선착순 (정원이 차면 대기 접수)</option>
+            <option value="lottery">추첨 (마감까지 모두 접수, 마감 후 추첨)</option>
+          </select>
+          <p className="muted field-help">
+            {form.selectionMethod === 'lottery'
+              ? '추첨 행사는 정원(선발 인원)을 넘어도 접수 마감까지 모든 신청을 신청 순서대로 접수하며 대기 전환이 없습니다. 추첨·선발 기능은 아직 제공되지 않습니다.'
+              : '정원이 차면 이후 신청은 대기로 접수되고, 취소가 생기면 대기 순서대로 자동 확정됩니다.'}
+            {(form.appliedCount || 0) > 0 && ' (이미 신청자가 있어 모집 방식은 변경할 수 없습니다.)'}
+          </p>
         </div>
 
         <div className="field">

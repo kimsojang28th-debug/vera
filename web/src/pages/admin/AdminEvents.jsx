@@ -43,7 +43,7 @@ export default function AdminEvents() {
         <table>
           <thead>
             <tr>
-              <th>행사명</th><th>그룹</th><th>세대당인원</th><th>상태</th><th>접수기간</th><th>정원</th><th></th>
+              <th>행사명</th><th>그룹</th><th>세대당인원</th><th>상태</th><th>접수기간</th><th>모집방식</th><th>신청/정원</th><th></th>
             </tr>
           </thead>
           <tbody>
@@ -56,7 +56,8 @@ export default function AdminEvents() {
                   <td>{e.multiPerHousehold ? '가족 여러 명' : '1명'}</td>
                   <td><span className={`badge badge-${status.tone}`}>{status.label}</span></td>
                   <td>{formatDateTime(e.applyStart)} ~ {formatDateTime(e.applyEnd)}</td>
-                  <td>{e.appliedCount ?? 0} / {e.capacity}</td>
+                  <td>{e.selectionMethod === 'lottery' ? '추첨' : '선착순'}</td>
+                  <td>{e.appliedCount ?? 0} / {e.capacity}{e.selectionMethod === 'lottery' ? ' (선발)' : ''}</td>
                   <td className="table-actions">
                     <Link to={`/admin/events/${e.id}`}>수정</Link>
                     {e.status === 'open' && (

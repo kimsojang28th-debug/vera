@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { formatDateTime, getCapacityPercent, getEventStatus, isEventFull } from '../utils/format';
+import { formatDateTime, getCapacityPercent, getCapacityText, getEventStatus, isEventFull, isLottery } from '../utils/format';
 
 // 이틀 등 여러 날짜 중 하루만 신청 가능한 행사를 하나의 카드로 묶어 보여줍니다.
 export default function GroupedEventCard({ groupId, groupTitle, events }) {
@@ -8,7 +8,8 @@ export default function GroupedEventCard({ groupId, groupTitle, events }) {
   const [selectedId, setSelectedId] = useState(events[0]?.id);
   const selected = events.find((e) => e.id === selectedId) || events[0];
   const status = getEventStatus(selected);
-  const percent = getCapacityPercent(selected);
+  const lottery = isLottery(selected);
+  const percent = lottery ? 100 : getCapacityPercent(selected);
 
   return (
     <div className="event-card event-card-grouped">
@@ -34,7 +35,7 @@ export default function GroupedEventCard({ groupId, groupTitle, events }) {
                 onChange={() => setSelectedId(ev.id)}
               />
               <span>
-                {formatDateTime(ev.eventStart)} · {ev.appliedCount ?? 0}/{ev.capacity}명
+                {formatDateTime(ev.eventStart)} · {getCapacityText(ev)}
                 {isEventFull(ev) ? ' · 대기가능' : ''}
               </span>
             </label>
@@ -42,8 +43,8 @@ export default function GroupedEventCard({ groupId, groupTitle, events }) {
         </div>
 
         <div className="capacity-row">
-          <div className="capacity-track"><div className="capacity-fill" style={{ width: `${percent}%` }} /></div>
-          <span className="capacity-label">{selected.appliedCount ?? 0}/{selected.capacity}명</span>
+          <div className="capacity-track"><div className={`capacity-fill${lottery ? ' capacity-fill-lottery' : ''}`} style={{ width: `${percent}%` }} /></div>
+          <span className="capacity-label">{getCapacityText(selected)}</span>
         </div>
 
         <button
