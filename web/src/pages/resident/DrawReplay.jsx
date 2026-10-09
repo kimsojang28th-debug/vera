@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../../firebase';
 import DrawStage from '../../components/DrawStage';
@@ -28,7 +28,13 @@ export default function DrawReplay() {
       <button className="link-button back-link" onClick={() => navigate(`/events/${eventId}`)}>← 행사로 돌아가기</button>
       {error && <p className="empty-state">{error}</p>}
       {!error && !data && <div className="page-loading">불러오는 중...</div>}
-      {data && <DrawStage data={data} mode="replay" autoDefault />}
+      {data && (
+        <DrawStage data={data} mode="replay" autoDefault>
+          <Link className="stage-cta stage-cta-outline" to={`/events/${eventId}/draw/report`}>
+            추첨 결과 확인서
+          </Link>
+        </DrawStage>
+      )}
     </div>
   );
 }

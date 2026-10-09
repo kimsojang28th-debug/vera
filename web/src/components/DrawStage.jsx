@@ -290,9 +290,12 @@ export default function DrawStage({ data, mode = 'replay', maskNames = false, au
               </button>
             ) : done ? (
               replay ? (
-                <button type="button" className="stage-cta" onClick={restart}>
-                  처음부터 다시 보기
-                </button>
+                <>
+                  <button type="button" className="stage-cta" onClick={restart}>
+                    처음부터 다시 보기
+                  </button>
+                  {children}
+                </>
               ) : (
                 <>{children}</>
               )

@@ -499,6 +499,8 @@ a.btn { display: inline-block; text-align: center; }
 .stage-controls { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; }
 .stage-cta { background: #C9A227; color: #16293F; border: 0; border-radius: 14px; padding: 14px 34px; font: inherit; font-size: 1.1rem; font-weight: 800; cursor: pointer; min-width: 220px; text-align: center; }
 .stage-cta:disabled { opacity: 0.55; cursor: not-allowed; }
+.stage-cta-outline { background: transparent; color: #FFFFFF; border: 2px solid #C9A227; text-decoration: none; box-sizing: border-box; }
+.stage-cta-outline:hover { color: #FFFFFF; }
 .stage-cta-link { display: inline-block; color: #16293F; }
 .stage-cta-link:hover { color: #16293F; }
 .stage-sub-controls { display: flex; gap: 18px; align-items: center; font-size: 0.9rem; }
@@ -533,6 +535,11 @@ a.btn { display: inline-block; text-align: center; }
 .report-sign { display: flex; justify-content: space-around; margin-top: 48px; font-size: 0.95rem; }
 .report-sign div { display: flex; align-items: flex-end; gap: 10px; }
 .report-sign span { display: inline-block; width: 150px; border-bottom: 1px solid #111111; height: 1.2em; }
+@media (max-width: 600px) {
+  .report { padding: 22px 14px; }
+  .report th { width: auto; white-space: nowrap; padding: 6px 8px; }
+  .report .mono { font-size: 0.78rem; }
+}
 @media print {
   @page { size: A4; margin: 14mm; }
   body { background: #FFFFFF; }

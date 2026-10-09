@@ -507,6 +507,8 @@ export const getDrawReplay = onCall(async (request) => {
     entryCount: d.entryCount,
     winnerCount: d.winnerCount,
     reserveCount: d.reserveCount,
+    capacity: d.capacity ?? null,
+    method: d.method || '',
     // 신청자 전체(이름은 마스킹)와 뽑힌 순서(entries의 위치 번호)만 내려줍니다.
     entries: (d.entries || []).map((e) => ({ dong: e.dong, ho: e.ho, name: maskName(e.name) })),
     picked: (d.picked || []).map((p) => ({ index: p.index, rank: p.rank, result: p.result, reserveNo: p.reserveNo })),

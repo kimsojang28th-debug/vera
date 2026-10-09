@@ -10,6 +10,7 @@ import EventDetail from './pages/resident/EventDetail';
 import MyApplications from './pages/resident/MyApplications';
 import MyInfo from './pages/resident/MyInfo';
 import DrawReplay from './pages/resident/DrawReplay';
+import DrawReport from './pages/resident/DrawReport';
 
 import AdminLogin from './pages/admin/AdminLogin';
 import AdminEvents from './pages/admin/AdminEvents';
@@ -65,6 +66,15 @@ export default function App() {
               <AdminRoute>
                 <AdminDrawReport />
               </AdminRoute>
+            }
+          />
+
+          <Route
+            path="/events/:eventId/draw/report"
+            element={
+              <ResidentRoute>
+                <DrawReport />
+              </ResidentRoute>
             }
           />
 
