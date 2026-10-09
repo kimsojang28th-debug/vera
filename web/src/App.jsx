@@ -8,6 +8,7 @@ import Login from './pages/resident/Login';
 import EventList from './pages/resident/EventList';
 import EventDetail from './pages/resident/EventDetail';
 import MyApplications from './pages/resident/MyApplications';
+import MyInfo from './pages/resident/MyInfo';
 
 import AdminLogin from './pages/admin/AdminLogin';
 import AdminEvents from './pages/admin/AdminEvents';
@@ -33,6 +34,7 @@ export default function App() {
             <Route path="/events" element={<EventList />} />
             <Route path="/events/:eventId" element={<EventDetail />} />
             <Route path="/my" element={<MyApplications />} />
+            <Route path="/me" element={<MyInfo />} />
           </Route>
 
           <Route path="/admin" element={<Navigate to="/admin/events" replace />} />

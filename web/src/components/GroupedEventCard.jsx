@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { formatDateTime, getCapacityPercent, getCapacityText, getEventStatus, isEventFull, isLottery } from '../utils/format';
+import { getCapacityPercent, getCapacityText, getEventStatus, getEventWhen, isEventFull, isLottery } from '../utils/format';
 
 // 이틀 등 여러 날짜 중 하루만 신청 가능한 행사를 하나의 카드로 묶어 보여줍니다.
 export default function GroupedEventCard({ groupId, groupTitle, events }) {
@@ -21,7 +21,10 @@ export default function GroupedEventCard({ groupId, groupTitle, events }) {
         </div>
       )}
       <div className="event-card-body">
-        <div className={`badge badge-${status.tone}`}>{status.label}</div>
+        <div className="badge-row">
+          <div className={`badge badge-${status.tone}`}>{status.label}</div>
+          {status.dday && <span className={`dday-pill dday-pill-inline${status.tone === 'urgent' ? ' dday-pill-urgent' : ''}`}>{status.dday}</span>}
+        </div>
         <h3>{groupTitle}</h3>
         <p className="muted">{selected.place}</p>
 
@@ -35,7 +38,7 @@ export default function GroupedEventCard({ groupId, groupTitle, events }) {
                 onChange={() => setSelectedId(ev.id)}
               />
               <span>
-                {formatDateTime(ev.eventStart)} · {getCapacityText(ev)}
+                {getEventWhen(ev).full} · {getCapacityText(ev)}
                 {isEventFull(ev) ? ' · 대기가능' : ''}
               </span>
             </label>

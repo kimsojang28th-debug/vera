@@ -54,3 +54,41 @@ export function IconBell({ size = 16 }) {
     </svg>
   );
 }
+
+// 상세·목록 화면 공용 아이콘 (선 두께 2, currentColor)
+function Svg({ size, children }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {children}
+    </svg>
+  );
+}
+
+// 추첨(섞기)
+export function IconShuffle({ size = 22 }) {
+  return (
+    <Svg size={size}>
+      <path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5" />
+    </Svg>
+  );
+}
+
+// 신청서(체크 표시)
+export function IconCheckSquare({ size = 22 }) {
+  return (
+    <Svg size={size}>
+      <path d="M9 11l3 3L22 4" />
+      <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+    </Svg>
+  );
+}
+
+// 내 정보(사람)
+export function IconUser({ size = 22 }) {
+  return (
+    <Svg size={size}>
+      <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
+    </Svg>
+  );
+}

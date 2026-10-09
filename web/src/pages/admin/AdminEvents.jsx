@@ -54,7 +54,7 @@ export default function AdminEvents() {
                   <td>{e.title}</td>
                   <td>{e.groupId ? (e.groupTitle || e.groupId) : '-'}</td>
                   <td>{e.multiPerHousehold ? '가족 여러 명' : '1명'}</td>
-                  <td><span className={`badge badge-${status.tone}`}>{status.label}</span></td>
+                  <td><span className={`badge badge-${status.tone}`}>{status.label}{status.dday ? ` (${status.dday})` : ''}</span></td>
                   <td>{formatDateTime(e.applyStart)} ~ {formatDateTime(e.applyEnd)}</td>
                   <td>{e.selectionMethod === 'lottery' ? '추첨' : '선착순'}</td>
                   <td>{e.appliedCount ?? 0} / {e.capacity}{e.selectionMethod === 'lottery' ? ' (선발)' : ''}</td>

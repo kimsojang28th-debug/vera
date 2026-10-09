@@ -17,6 +17,77 @@ export function formatDate(ts) {
   return d.toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' });
 }
 
+// ---- 짧고 눈에 띄는 날짜/시간 표기 ----
+const WEEKDAY_SHORT = ['일', '월', '화', '수', '목', '금', '토'];
+const WEEKDAY_LONG = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
+
+function toDate(ts) {
+  if (!ts) return null;
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function pad2(n) {
+  return String(n).padStart(2, '0');
+}
+
+// 24시간 표기 (예: 11:00)
+function time24(d) {
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+
+// 오전/오후 표기 (예: 오전 10:00)
+function timeMeridiem(d) {
+  const h = d.getHours();
+  return `${h < 12 ? '오전' : '오후'}\u00A0${h % 12 || 12}:${pad2(d.getMinutes())}`;
+}
+
+function sameDay(a, b) {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+
+// 10/8(목) 형식. 올해가 아니면 연도를 앞에 붙입니다.
+function shortMonthDay(d) {
+  const year = d.getFullYear() !== new Date().getFullYear() ? `${d.getFullYear()}.` : '';
+  return `${year}${d.getMonth() + 1}/${d.getDate()}(${WEEKDAY_SHORT[d.getDay()]})`;
+}
+
+// 행사 일시를 화면용 조각으로 나눕니다.
+// 같은 날이면 날짜는 한 번만, 시간은 '오전 10:00 ~ 12:00'처럼 줄입니다.
+export function getEventWhen(event) {
+  const start = toDate(event.eventStart);
+  const end = toDate(event.eventEnd);
+  if (!start) return { month: '', day: '', weekdayLong: '', dateLabel: '-', timeLabel: '', full: '-' };
+
+  const dateLabel = `${start.getMonth() + 1}월 ${start.getDate()}일(${WEEKDAY_SHORT[start.getDay()]})`;
+  let timeLabel = timeMeridiem(start);
+  if (end) {
+    if (!sameDay(start, end)) {
+      timeLabel = `${timeMeridiem(start)} ~ ${shortMonthDay(end)} ${timeMeridiem(end)}`;
+    } else if (end > start && (end.getHours() < 12) === (start.getHours() < 12)) {
+      timeLabel = `${timeMeridiem(start)} ~ ${end.getHours() % 12 || 12}:${pad2(end.getMinutes())}`;
+    } else {
+      timeLabel = `${timeMeridiem(start)} ~ ${timeMeridiem(end)}`;
+    }
+  }
+  return {
+    month: `${start.getMonth() + 1}월`,
+    day: String(start.getDate()),
+    weekdayLong: WEEKDAY_LONG[start.getDay()],
+    dateLabel,
+    timeLabel,
+    full: `${dateLabel} ${timeLabel}`,
+  };
+}
+
+// 접수기간: '10/8(목) 11:00 ~ 10/15(목) 12:00'
+export function formatApplyPeriod(event) {
+  const start = toDate(event.applyStart);
+  const end = toDate(event.applyEnd);
+  if (!start || !end) return '-';
+  return `${shortMonthDay(start)} ${time24(start)} ~ ${shortMonthDay(end)} ${time24(end)}`;
+}
+
 // 추첨 모집 행사 여부 (selectionMethod가 없으면 기존 선착순)
 export function isLottery(event) {
   return event?.selectionMethod === 'lottery';
@@ -54,7 +125,7 @@ export function getCapacityPercent(event) {
 }
 
 // 행사 상태 계산: draft/closed는 그대로, open이면 신청기간·정원 기준으로
-// 모집예정/모집중(D-day)/마감임박/정원마감(대기가능)/접수마감을 계산
+// 모집예정/모집중/마감임박/정원마감(대기가능)/접수마감을 계산하고, 접수 중이면 dday(마감 D-n)도 함께 돌려줍니다.
 export function getEventStatus(event) {
   if (event.status === 'draft') return { label: '준비중', tone: 'muted' };
   if (event.status === 'closed') return { label: '마감', tone: 'closed' };
@@ -67,12 +138,13 @@ export function getEventStatus(event) {
   if (now > end) return { label: isLottery(event) ? '접수마감·추첨예정' : '접수마감', tone: 'closed' };
 
   const lottery = isLottery(event);
-  if (isEventFull(event)) return { label: '정원마감·대기가능', tone: 'waiting' };
-
   const daysLeft = Math.max(0, Math.ceil((end - now) / 86400000));
-  if (daysLeft <= 1) return { label: lottery ? '추첨접수·마감임박' : '마감임박', tone: 'urgent' };
-  if (lottery) return { label: `추첨접수중 (마감 D-${daysLeft})`, tone: 'open' };
-  return { label: `모집중 (마감 D-${daysLeft})`, tone: 'open' };
+  const dday = daysLeft <= 0 ? '오늘 마감' : `마감 D-${daysLeft}`;
+
+  if (isEventFull(event)) return { label: '정원마감·대기가능', tone: 'waiting', dday, daysLeft };
+  if (daysLeft <= 1) return { label: lottery ? '추첨접수·마감임박' : '마감임박', tone: 'urgent', dday, daysLeft };
+  if (lottery) return { label: '추첨접수중', tone: 'open', dday, daysLeft };
+  return { label: '모집중', tone: 'open', dday, daysLeft };
 }
 
 // 신청 가능 여부: 공개 상태 + 신청기간만 확인합니다. 정원이 찬 경우에도
