@@ -16,6 +16,7 @@ import AdminEvents from './pages/admin/AdminEvents';
 import AdminEventForm from './pages/admin/AdminEventForm';
 import AdminApplications from './pages/admin/AdminApplications';
 import AdminHouseholds from './pages/admin/AdminHouseholds';
+import AdminSettings from './pages/admin/AdminSettings';
 import AdminDraw from './pages/admin/AdminDraw';
 import AdminDrawReport from './pages/admin/AdminDrawReport';
 
@@ -55,6 +56,7 @@ export default function App() {
             <Route path="/admin/events/:eventId/draw" element={<AdminDraw />} />
             <Route path="/admin/applications" element={<AdminApplications />} />
             <Route path="/admin/households" element={<AdminHouseholds />} />
+            <Route path="/admin/settings" element={<AdminSettings />} />
           </Route>
 
           <Route

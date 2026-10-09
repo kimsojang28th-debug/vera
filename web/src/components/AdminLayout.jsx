@@ -1,7 +1,8 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { IconBuilding } from './icons';
+import { IconBuilding, IconCalendar, IconCheckSquare, IconLogout, IconSettings } from './icons';
 
+// 관리자 화면 공통 틀: 위쪽 네이비 헤더 + 아래쪽 탭바(휴대폰) / 헤더 아래 메뉴줄(PC)
 export default function AdminLayout() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
@@ -12,20 +13,43 @@ export default function AdminLayout() {
   }
 
   return (
-    <div className="app-shell">
-      <header className="top-nav">
-        <span className="brand"><IconBuilding size={20} />관리자 모드</span>
-        <nav>
-          <NavLink to="/admin/events">행사배너 관리</NavLink>
-          <NavLink to="/admin/applications">신청현황</NavLink>
-          <NavLink to="/admin/households">동호수관리</NavLink>
-          <span className="household-badge">{user?.email}</span>
-          <button className="link-button" onClick={handleSignOut}>로그아웃</button>
-        </nav>
+    <div className="app-shell admin-shell">
+      <header className="res-header">
+        <IconBuilding size={30} className="res-header-icon" />
+        <div className="res-header-title">
+          <span className="res-header-eyebrow">관리자</span>
+          <span className="res-header-name">래미안베라힐즈</span>
+        </div>
+        <span className="admin-header-account">
+          <span className="admin-header-email">{user?.email}</span>
+          <button type="button" className="admin-header-logout" onClick={handleSignOut}>
+            <IconLogout size={16} />로그아웃
+          </button>
+        </span>
       </header>
-      <main className="page">
+
+      <main className="page admin-page">
         <Outlet />
       </main>
+
+      <nav className="tab-bar" aria-label="관리자 메뉴">
+        <NavLink to="/admin/events" className="tab-item">
+          <IconCalendar size={24} />
+          <span>행사</span>
+        </NavLink>
+        <NavLink to="/admin/applications" className="tab-item">
+          <IconCheckSquare size={24} />
+          <span>신청현황</span>
+        </NavLink>
+        <NavLink to="/admin/households" className="tab-item">
+          <IconBuilding size={24} />
+          <span>동호수</span>
+        </NavLink>
+        <NavLink to="/admin/settings" className="tab-item tab-item-settings">
+          <IconSettings size={24} />
+          <span>설정</span>
+        </NavLink>
+      </nav>
     </div>
   );
 }
