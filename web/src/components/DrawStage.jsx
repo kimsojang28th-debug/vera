@@ -79,11 +79,13 @@ export default function DrawStage({ data, mode = 'replay', maskNames = false, au
   const { entries, picked, winnerCount, reserveCount } = data;
   const total = picked.length;
   const useWheel = entries.length <= WHEEL_MAX;
+  const replay = mode === 'replay'; // 입주민 다시 보기: 자동 진행만 지원
 
   const [started, setStarted] = useState(false);
   const [step, setStep] = useState(0);
   const [spinning, setSpinning] = useState(false);
-  const [auto, setAuto] = useState(autoDefault);
+  const [auto, setAuto] = useState(autoDefault || replay);
+  const [pendingStart, setPendingStart] = useState(false);
   const [rotation, setRotation] = useState(0);
   const [animate, setAnimate] = useState(false);
   const [reelEntry, setReelEntry] = useState(null);
@@ -172,6 +174,28 @@ export default function DrawStage({ data, mode = 'replay', maskNames = false, au
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auto, started, spinning, step]);
 
+  // 처음부터 다시 보기: 상태를 모두 되돌린 뒤 자동으로 바로 시작합니다.
+  function restart() {
+    timers.current.forEach(clearTimeout);
+    timers.current = [];
+    setSpinning(false);
+    setAnimate(false);
+    setRotation(0);
+    setReelEntry(null);
+    setLastPick(null);
+    setStarted(false);
+    setStep(0);
+    setPendingStart(true);
+  }
+
+  useEffect(() => {
+    if (pendingStart && !started && step === 0 && !spinning) {
+      setPendingStart(false);
+      spinNext();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingStart, started, step, spinning]);
+
   function showAll() {
     timers.current.forEach(clearTimeout);
     timers.current = [];
@@ -212,7 +236,7 @@ export default function DrawStage({ data, mode = 'replay', maskNames = false, au
     <div className={`draw-stage${isFull ? ' draw-stage-full' : ''}`} ref={rootRef}>
       <div className="draw-stage-top">
         <div>
-          <div className="draw-stage-eyebrow">{mode === 'live' ? '추첨 진행' : '추첨 다시보기'}</div>
+          <div className="draw-stage-eyebrow">{mode === 'live' ? '추첨 진행' : '추첨 다시 보기'}</div>
           <h2 className="draw-stage-title">{data.eventTitle}</h2>
           <div className="draw-stage-sub">
             신청 {entries.length}명 · 당첨 {winnerCount}명 · 예비 {reserveCount}명
@@ -252,7 +276,7 @@ export default function DrawStage({ data, mode = 'replay', maskNames = false, au
             )}
           </div>
 
-          {lastPick && !spinning && (
+          {lastPick && !spinning && !done && (
             <div className={`stage-banner stage-banner-${lastPick.pick.result}`} role="status">
               <span className="stage-banner-tag">{pickLabel(lastPick.pick)}</span>
               <span className="stage-banner-name">{fullLabel(lastPick.entry)}</span>
@@ -262,10 +286,20 @@ export default function DrawStage({ data, mode = 'replay', maskNames = false, au
           <div className="stage-controls">
             {!started ? (
               <button type="button" className="stage-cta" onClick={spinNext} disabled={total === 0}>
-                추첨 시작
+                {replay ? '추첨 과정 다시 보기' : '추첨 시작'}
               </button>
             ) : done ? (
-              <>{children}</>
+              replay ? (
+                <button type="button" className="stage-cta" onClick={restart}>
+                  처음부터 다시 보기
+                </button>
+              ) : (
+                <>{children}</>
+              )
+            ) : replay ? (
+              <div className="stage-progress" role="status">
+                추첨 중… ({Math.min(total, step + (spinning ? 1 : 0))}/{total})
+              </div>
             ) : (
               <button type="button" className="stage-cta" onClick={spinNext} disabled={spinning || auto}>
                 {spinning ? '추첨 중…' : `다음 추첨 (${step + 1}/${total})`}
@@ -273,10 +307,12 @@ export default function DrawStage({ data, mode = 'replay', maskNames = false, au
             )}
             {!done && (
               <div className="stage-sub-controls">
-                <label className="stage-check">
-                  <input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} />
-                  자동 진행
-                </label>
+                {!replay && (
+                  <label className="stage-check">
+                    <input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} />
+                    자동 진행
+                  </label>
+                )}
                 <button type="button" className="stage-link" onClick={showAll}>
                   결과 바로 보기
                 </button>

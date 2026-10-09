@@ -99,7 +99,7 @@ export default function MyApplications() {
                 <p className="muted small-note">{getApplicationBadge(app, isLottery(app.event)).note}</p>
               )}
               {isLottery(app.event) && app.event?.drawStatus === 'done' && (
-                <p className="small-note"><Link to={`/events/${app.eventId}/draw`}>추첨 과정 다시보기 →</Link></p>
+                <p className="small-note"><Link to={`/events/${app.eventId}/draw`}>추첨 과정 다시 보기 →</Link></p>
               )}
 
               {editingId === app.id ? (

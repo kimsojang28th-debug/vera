@@ -249,7 +249,7 @@ export default function EventDetail() {
               })}
             </ul>
           )}
-          <Link className="btn btn-block" to={`/events/${event.id}/draw`}>추첨 과정 다시보기</Link>
+          <Link className="btn btn-block" to={`/events/${event.id}/draw`}>추첨 과정 다시 보기</Link>
           <div>
             <div className="info-label">당첨자 ({drawState.selected.length}명)</div>
             <table className="result-table">

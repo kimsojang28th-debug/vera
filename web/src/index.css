@@ -769,3 +769,6 @@ fieldset.field-group legend { font-size: 15px; font-weight: 700; margin-bottom: 
   .step-form { padding: 24px; }
   .form-footer { bottom: 0; }
 }
+
+/* 입주민 추첨 다시 보기: 자동 진행 중 표시 */
+.stage-progress { min-width: 220px; box-sizing: border-box; text-align: center; padding: 14px 34px; border-radius: 14px; background: rgba(255,255,255,0.12); color: #F3E7C9; font-size: 1.05rem; font-weight: 700; }
