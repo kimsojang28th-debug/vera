@@ -9,12 +9,15 @@ import EventList from './pages/resident/EventList';
 import EventDetail from './pages/resident/EventDetail';
 import MyApplications from './pages/resident/MyApplications';
 import MyInfo from './pages/resident/MyInfo';
+import DrawReplay from './pages/resident/DrawReplay';
 
 import AdminLogin from './pages/admin/AdminLogin';
 import AdminEvents from './pages/admin/AdminEvents';
 import AdminEventForm from './pages/admin/AdminEventForm';
 import AdminApplications from './pages/admin/AdminApplications';
 import AdminHouseholds from './pages/admin/AdminHouseholds';
+import AdminDraw from './pages/admin/AdminDraw';
+import AdminDrawReport from './pages/admin/AdminDrawReport';
 
 export default function App() {
   return (
@@ -33,6 +36,7 @@ export default function App() {
           >
             <Route path="/events" element={<EventList />} />
             <Route path="/events/:eventId" element={<EventDetail />} />
+            <Route path="/events/:eventId/draw" element={<DrawReplay />} />
             <Route path="/my" element={<MyApplications />} />
             <Route path="/me" element={<MyInfo />} />
           </Route>
@@ -48,9 +52,19 @@ export default function App() {
             <Route path="/admin/events" element={<AdminEvents />} />
             <Route path="/admin/events/new" element={<AdminEventForm />} />
             <Route path="/admin/events/:eventId" element={<AdminEventForm />} />
+            <Route path="/admin/events/:eventId/draw" element={<AdminDraw />} />
             <Route path="/admin/applications" element={<AdminApplications />} />
             <Route path="/admin/households" element={<AdminHouseholds />} />
           </Route>
+
+          <Route
+            path="/admin/events/:eventId/draw/report"
+            element={
+              <AdminRoute>
+                <AdminDrawReport />
+              </AdminRoute>
+            }
+          />
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

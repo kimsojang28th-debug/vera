@@ -128,6 +128,7 @@ export function getCapacityPercent(event) {
 // 모집예정/모집중/마감임박/정원마감(대기가능)/접수마감을 계산하고, 접수 중이면 dday(마감 D-n)도 함께 돌려줍니다.
 export function getEventStatus(event) {
   if (event.status === 'draft') return { label: '준비중', tone: 'muted' };
+  if (isLottery(event) && event.drawStatus === 'done') return { label: '추첨완료', tone: 'done' };
   if (event.status === 'closed') return { label: '마감', tone: 'closed' };
 
   const now = new Date();

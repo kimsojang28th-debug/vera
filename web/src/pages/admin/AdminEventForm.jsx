@@ -20,6 +20,7 @@ const emptyEvent = {
   groupTitle: '',
   multiPerHousehold: false,
   selectionMethod: 'fcfs',
+  reserveCount: 5,
 };
 
 const BANNER_WIDTH = 1200;
@@ -108,6 +109,7 @@ export default function AdminEventForm() {
           multiPerHousehold: data.multiPerHousehold === true,
           selectionMethod: data.selectionMethod === 'lottery' ? 'lottery' : 'fcfs',
           appliedCount: data.appliedCount || 0,
+          reserveCount: data.reserveCount ?? 5,
         });
         setExtraFields(data.extraFields || []);
       }
@@ -179,6 +181,7 @@ export default function AdminEventForm() {
       groupTitle: form.groupTitle.trim(),
       multiPerHousehold: form.multiPerHousehold === true,
       selectionMethod: form.selectionMethod === 'lottery' ? 'lottery' : 'fcfs',
+      reserveCount: Math.min(50, Math.max(0, Math.floor(Number(form.reserveCount)) || 0)),
       extraFields: extraFields
         .filter((f) => f.label)
         .map((f) => ({
@@ -297,11 +300,18 @@ export default function AdminEventForm() {
           </select>
           <p className="muted field-help">
             {form.selectionMethod === 'lottery'
-              ? '추첨 행사는 정원(선발 인원)을 넘어도 접수 마감까지 모든 신청을 신청 순서대로 접수하며 대기 전환이 없습니다. 추첨·선발 기능은 아직 제공되지 않습니다.'
+              ? "추첨 행사는 정원(선발 인원)을 넘어도 접수 마감까지 모든 신청을 신청 순서대로 접수하며 대기 전환이 없습니다. 접수 마감 후 행사 목록의 '추첨' 메뉴에서 휠 추첨을 진행합니다."
               : '정원이 차면 이후 신청은 대기로 접수되고, 취소가 생기면 대기 순서대로 자동 확정됩니다.'}
             {(form.appliedCount || 0) > 0 && ' (이미 신청자가 있어 모집 방식은 변경할 수 없습니다.)'}
           </p>
         </div>
+
+        {form.selectionMethod === 'lottery' && (
+          <div className="field">
+            <label>예비 인원 (추첨 시 당첨자 취소에 대비해 순번을 정합니다)</label>
+            <input type="number" min="0" max="50" value={form.reserveCount} onChange={(e) => update('reserveCount', e.target.value)} />
+          </div>
+        )}
 
         <div className="field">
           <label>1세대당 신청 인원</label>

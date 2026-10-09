@@ -60,6 +60,9 @@ export default function AdminEvents() {
                   <td>{e.appliedCount ?? 0} / {e.capacity}{e.selectionMethod === 'lottery' ? ' (선발)' : ''}</td>
                   <td className="table-actions">
                     <Link to={`/admin/events/${e.id}`}>수정</Link>
+                    {e.selectionMethod === 'lottery' && (
+                      <Link to={`/admin/events/${e.id}/draw`}>{e.drawStatus === 'done' ? '추첨결과' : '추첨'}</Link>
+                    )}
                     {e.status === 'open' && (
                       <button className="link-button" onClick={() => handleEarlyClose(e.id)}>조기마감</button>
                     )}

@@ -5,7 +5,13 @@ import { formatDateTime } from '../../utils/format';
 import { downloadCsv } from '../../utils/csv';
 
 const STATUS_LABEL = { applied: '신청', waiting: '대기', cancelled: '취소' };
-const LOTTERY_STATUS_LABEL = { ...STATUS_LABEL, applied: '접수' };
+const LOTTERY_STATUS_LABEL = { ...STATUS_LABEL, applied: '접수', selected: '당첨', reserve: '예비', notSelected: '미당첨' };
+
+// 예비는 현재 순번까지 함께 표시합니다. (예: 예비 2번)
+function labelOf(labels, a) {
+  if (a.status === 'reserve' && a.reserveNo) return `예비 ${a.reserveNo}번`;
+  return labels[a.status] || a.status;
+}
 
 export default function AdminApplications() {
   const [events, setEvents] = useState([]);
@@ -61,7 +67,7 @@ export default function AdminApplications() {
         '호수': a.ho,
         '성명': a.residentName || '',
         '연락처': a.phone,
-        '상태': statusLabel[a.status] || a.status,
+        '상태': labelOf(statusLabel, a),
         '신청일시': formatDateTime(a.appliedAt),
       };
       extraFields.forEach((f) => {
@@ -98,7 +104,7 @@ export default function AdminApplications() {
         </div>
         {isLotteryEvent && (
           <span className="muted">
-            추첨 행사 · 접수 {selectedEvent.appliedCount ?? 0}명 / 선발 {selectedEvent.capacity}명
+            추첨 행사 · 접수 {selectedEvent.appliedCount ?? 0}명 / 선발 {selectedEvent.capacity}명{selectedEvent.drawStatus === 'done' ? ' · 추첨완료' : ''}
           </span>
         )}
         <button className="btn" onClick={handleExport} disabled={applications.length === 0}>CSV(엑셀) 다운로드</button>
@@ -124,7 +130,7 @@ export default function AdminApplications() {
                 <td>{a.ho}호</td>
                 <td>{a.residentName || '-'}</td>
                 <td>{a.phone}</td>
-                <td>{statusLabel[a.status] || a.status}</td>
+                <td>{labelOf(statusLabel, a)}</td>
                 <td>{formatDateTime(a.appliedAt)}</td>
                 {extraFields.map((f) => <td key={f.id}>{a.answers?.[f.id] || '-'}</td>)}
               </tr>

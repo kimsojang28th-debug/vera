@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { doc, getDoc, getDocs, query, collection, where } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../../firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import { formatApplyPeriod, getCapacityPercent, getCompetitionRatio, getEventStatus, getEventWhen, isApplyOpen, isEventFull, isLottery } from '../../utils/format';
+import { getApplicationBadge } from '../../utils/draw';
 import { IconCalendar, IconCheckSquare, IconClock, IconPin, IconShuffle, IconUsers } from '../../components/icons';
 
 // 숫자만 남기고 010-0000-0000 형식으로 자동 정리합니다.
@@ -25,6 +26,7 @@ export default function EventDetail() {
   const [myApplications, setMyApplications] = useState([]);
   const [statusList, setStatusList] = useState([]);
   const [waitingList, setWaitingList] = useState([]);
+  const [drawState, setDrawState] = useState({ drawn: false, selected: [], reserve: [] });
   const [residentName, setResidentName] = useState('');
   const [phone, setPhone] = useState('');
   const [answers, setAnswers] = useState({});
@@ -45,6 +47,11 @@ export default function EventDetail() {
       const result = await getApplicationStatus({ eventId });
       setStatusList(result.data.applications || []);
       setWaitingList(result.data.waiting || []);
+      setDrawState({
+        drawn: result.data.drawn === true,
+        selected: result.data.selected || [],
+        reserve: result.data.reserve || [],
+      });
     } catch (err) {
       console.error(err);
     }
@@ -59,7 +66,7 @@ export default function EventDetail() {
     const myApps = await getDocs(myQ);
     const active = myApps.docs
       .map((d) => ({ id: d.id, ...d.data() }))
-      .filter((a) => ['applied', 'waiting'].includes(a.status));
+      .filter((a) => ['applied', 'waiting', 'selected', 'reserve', 'notSelected'].includes(a.status));
     setMyApplications(active);
   }, [eventId, user.uid]);
 
@@ -226,6 +233,51 @@ export default function EventDetail() {
         </div>
       </section>
 
+      {lottery && drawState.drawn && (
+        <section className="detail-card draw-result-card">
+          <h3 className="draw-result-title">추첨 결과</h3>
+          {myApplications.length > 0 && (
+            <ul className="my-result-list">
+              {myApplications.map((a) => {
+                const badge = getApplicationBadge(a, true);
+                return (
+                  <li key={a.id}>
+                    <span className={`badge badge-${badge.tone} badge-lg`}>{badge.label}</span>
+                    <span className="my-result-name">{a.residentName}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          <Link className="btn btn-block" to={`/events/${event.id}/draw`}>추첨 과정 다시보기</Link>
+          <div>
+            <div className="info-label">당첨자 ({drawState.selected.length}명)</div>
+            <table className="result-table">
+              <thead><tr><th>번호</th><th>동</th><th>호수</th><th>이름</th></tr></thead>
+              <tbody>
+                {drawState.selected.map((a, i) => (
+                  <tr key={i}><td>{i + 1}</td><td>{a.dong}동</td><td>{a.ho}호</td><td>{a.name || '-'}</td></tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {drawState.reserve.length > 0 && (
+            <div>
+              <div className="info-label">예비 ({drawState.reserve.length}명)</div>
+              <table className="result-table">
+                <thead><tr><th>순번</th><th>동</th><th>호수</th><th>이름</th></tr></thead>
+                <tbody>
+                  {drawState.reserve.map((a, i) => (
+                    <tr key={i}><td>예비 {a.reserveNo}</td><td>{a.dong}동</td><td>{a.ho}호</td><td>{a.name || '-'}</td></tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <p className="muted small-note">당첨자가 취소하면 예비 순번대로 자동 당첨됩니다. 명단은 이름을 가려서 표시합니다.</p>
+        </section>
+      )}
+
       {event.groupId && (
         <div className="notice-box notice-box-muted">
           이 행사는 같은 그룹의 다른 날짜와 묶여 있어, {multiPerHousehold ? '한 분당 그 중 하루만' : '그 중 하루만'} 신청하실 수 있습니다.
@@ -240,14 +292,14 @@ export default function EventDetail() {
 
       {multiPerHousehold && myApplications.length > 0 && (
         <div className="notice-box notice-box-muted">
-          우리 세대에서 이미 신청하신 분: {myApplications.map((a) => `${a.residentName}(${a.status === 'waiting' ? '대기중' : lottery ? '접수완료' : '신청완료'})`).join(', ')}
+          우리 세대에서 이미 신청하신 분: {myApplications.map((a) => `${a.residentName}(${getApplicationBadge(a, lottery).label})`).join(', ')}
         </div>
       )}
 
       {submitMessage && <div className="notice-box">{submitMessage}</div>}
 
-      {!isApplyOpen(event) ? (
-        <div className="notice-box">현재 신청할 수 없는 행사입니다.</div>
+      {!isApplyOpen(event) || (lottery && drawState.drawn) ? (
+        !(lottery && drawState.drawn) && <div className="notice-box">현재 신청할 수 없는 행사입니다.</div>
       ) : !multiPerHousehold && myApplications.length > 0 ? (
         <div className="notice-box">
           {myApplications[0].status === 'waiting'
@@ -376,7 +428,7 @@ export default function EventDetail() {
         </div>
       )}
 
-      {isApplyOpen(event) && canApply && !formVisible && (
+      {isApplyOpen(event) && canApply && !formVisible && !(lottery && drawState.drawn) && (
         <div className="cta-bar">
           <div className="cta-bar-inner">
             <button

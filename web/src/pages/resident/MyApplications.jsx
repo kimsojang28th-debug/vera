@@ -3,7 +3,9 @@ import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firesto
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../../firebase';
 import { useAuth } from '../../contexts/AuthContext';
+import { Link } from 'react-router-dom';
 import { formatDateTime, isLottery } from '../../utils/format';
+import { getApplicationBadge } from '../../utils/draw';
 
 export default function MyApplications() {
   const { user } = useAuth();
@@ -83,20 +85,21 @@ export default function MyApplications() {
         <div className="my-application-list">
           {items.map((app) => (
             <div key={app.id} className="my-application-card">
-              <span className={`badge badge-${app.status === 'waiting' ? 'waiting' : 'open'}`}>
-                {app.status === 'waiting' ? '대기중' : isLottery(app.event) ? '접수완료' : '신청완료'}
-              </span>
+              {(() => {
+                const badge = getApplicationBadge(app, isLottery(app.event));
+                return <span className={`badge badge-${badge.tone}`}>{badge.label}</span>;
+              })()}
               <h3>{app.event?.title || '(삭제된 행사)'}</h3>
               {app.event && (
                 <p className="muted">{formatDateTime(app.event.eventStart)} · {app.event.place}</p>
               )}
               {app.residentName && <p className="muted">신청자: {app.residentName}</p>}
               <p className="muted">신청일시: {formatDateTime(app.appliedAt)}</p>
-              {isLottery(app.event) && app.status !== 'waiting' && (
-                <p className="muted small-note">추첨 행사입니다. 접수 마감 후 추첨으로 선발되며, 결과는 별도로 안내됩니다.</p>
+              {getApplicationBadge(app, isLottery(app.event)).note && (
+                <p className="muted small-note">{getApplicationBadge(app, isLottery(app.event)).note}</p>
               )}
-              {app.status === 'waiting' && (
-                <p className="muted small-note">자리가 나면 대기 순서대로 자동으로 신청 확정됩니다.</p>
+              {isLottery(app.event) && app.event?.drawStatus === 'done' && (
+                <p className="small-note"><Link to={`/events/${app.eventId}/draw`}>추첨 과정 다시보기 →</Link></p>
               )}
 
               {editingId === app.id ? (
@@ -140,7 +143,9 @@ export default function MyApplications() {
                     {(app.event?.extraFields || []).length > 0 && (
                       <button className="btn" onClick={() => startEdit(app)}>수정</button>
                     )}
-                    <button className="btn btn-danger" onClick={() => handleCancel(app.id)}>신청취소</button>
+                    {app.status !== 'notSelected' && (
+                      <button className="btn btn-danger" onClick={() => handleCancel(app.id)}>신청취소</button>
+                    )}
                   </div>
                 </>
               )}

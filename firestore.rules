@@ -37,6 +37,13 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // 추첨 증빙 기록(전체 명단·결과·증빙 코드). 관리자만 조회하며, 쓰기는 runDraw 함수(Admin SDK)만 합니다.
+    // 입주민에게는 getDrawReplay 함수가 이름을 가린 데이터만 내려줍니다.
+    match /draws/{eventId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
     // 관리자 계정 메타정보. 커스텀 클레임 부여는 scripts/setAdminClaim.js로만 수행합니다.
     match /admins/{uid} {
       allow read: if isAdmin();
