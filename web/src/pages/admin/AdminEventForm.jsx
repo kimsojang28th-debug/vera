@@ -76,6 +76,31 @@ function newFieldId() {
   return `f${Date.now()}${fieldCounter}`;
 }
 
+// 행사 종료가 '오전 12:00'(자정)으로 입력돼 시작보다 빨라진 경우를 찾아, 바로 고칠 수 있게 안내합니다.
+// (낮 12시는 12시간제에서 '오후 12:00'입니다.)
+function getEndMidnightHint(form) {
+  if (!form.eventStart || !form.eventEnd) return null;
+  if (new Date(form.eventEnd) > new Date(form.eventStart)) return null;
+  if (form.eventEnd.slice(11, 16) !== '00:00') return null;
+  const day = form.eventStart.slice(0, 10);
+  if (form.eventEnd.slice(0, 10) !== day) return null;
+  if (Number(form.eventStart.slice(11, 13)) < 12) {
+    return {
+      text: "'오전 12:00'는 한밤중(자정)이라 시작 시각보다 빠릅니다. 낮 12시는 '오후 12:00'으로 선택해야 합니다.",
+      label: '낮 12시(오후 12:00)로 바꾸기',
+      value: `${day}T12:00`,
+    };
+  }
+  const next = new Date(`${day}T00:00:00`);
+  next.setDate(next.getDate() + 1);
+  const pad = (n) => String(n).padStart(2, '0');
+  return {
+    text: "종료가 같은 날 '오전 12:00'(자정)이라 시작보다 빠릅니다. 밤 12시에 끝나는 행사라면 종료 날짜를 다음 날로 해야 합니다.",
+    label: '다음 날 자정으로 바꾸기',
+    value: `${next.getFullYear()}-${pad(next.getMonth() + 1)}-${pad(next.getDate())}T00:00`,
+  };
+}
+
 export default function AdminEventForm() {
   const { eventId } = useParams();
   const isNew = !eventId || eventId === 'new';
@@ -170,7 +195,11 @@ export default function AdminEventForm() {
     if (n === 2) {
       if (!form.applyStart || !form.applyEnd || !form.eventStart) return '접수 시작·종료와 행사 시작일시를 입력해 주세요.';
       if (new Date(form.applyEnd) <= new Date(form.applyStart)) return '접수 종료는 접수 시작보다 늦어야 합니다.';
-      if (form.eventEnd && new Date(form.eventEnd) <= new Date(form.eventStart)) return '행사 종료는 행사 시작보다 늦어야 합니다.';
+      if (form.eventEnd && new Date(form.eventEnd) <= new Date(form.eventStart)) {
+        return getEndMidnightHint(form)
+          ? "행사 종료가 시작보다 빠릅니다. 아래 안내의 버튼으로 시간을 바로 고칠 수 있습니다."
+          : '행사 종료는 행사 시작보다 늦어야 합니다.';
+      }
     }
     if (n === 3) {
       if (!(Number(form.capacity) >= 1)) return '인원은 1명 이상이어야 합니다.';
@@ -362,6 +391,15 @@ export default function AdminEventForm() {
                   <input id="ev-ee" type="datetime-local" value={form.eventEnd} onChange={(e) => update('eventEnd', e.target.value)} />
                 </div>
               </div>
+              {(() => {
+                const hint = getEndMidnightHint(form);
+                return hint ? (
+                  <div className="time-hint" role="note">
+                    <p>{hint.text}</p>
+                    <button type="button" className="btn btn-outline" onClick={() => update('eventEnd', hint.value)}>{hint.label}</button>
+                  </div>
+                ) : null;
+              })()}
             </fieldset>
           </>
         )}

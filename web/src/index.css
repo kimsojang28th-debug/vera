@@ -830,3 +830,7 @@ fieldset.field-group legend { font-size: 15px; font-weight: 700; margin-bottom: 
 .data-cleanup .detail-card p { margin: 0 0 12px; font-size: 15px; line-height: 1.5; }
 .cleanup-found { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--color-border); }
 .btn.confirm-go-danger { color: #FFFFFF; }
+
+.time-hint { margin-top: 10px; padding: 12px 14px; border-radius: 14px; background: var(--color-gold-soft); color: var(--color-gold-text); font-size: 15px; line-height: 1.5; }
+.time-hint p { margin: 0 0 10px; }
+.time-hint .btn { min-height: 46px; width: 100%; }
