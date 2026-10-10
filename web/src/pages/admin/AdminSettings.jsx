@@ -1,10 +1,11 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { IconLogout, IconUser } from '../../components/icons';
+import AdminAccounts from './AdminAccounts';
 
 // 모바일에서 상단에서 뺀 계정 정보와 로그아웃을 모아 둔 화면
 export default function AdminSettings() {
-  const { user, signOut } = useAuth();
+  const { user, isSuperAdmin, signOut } = useAuth();
   const navigate = useNavigate();
 
   async function handleSignOut() {
@@ -29,6 +30,8 @@ export default function AdminSettings() {
           <IconLogout size={18} />로그아웃
         </button>
       </section>
+
+      {isSuperAdmin && <AdminAccounts />}
     </div>
   );
 }

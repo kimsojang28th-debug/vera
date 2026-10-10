@@ -9,6 +9,7 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false); // 최고관리자: 관리자 추가/해제 가능
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -16,12 +17,14 @@ export function AuthProvider({ children }) {
       if (!u) {
         setUser(null);
         setIsAdmin(false);
+        setIsSuperAdmin(false);
         setLoading(false);
         return;
       }
       const tokenResult = await u.getIdTokenResult();
       setUser(u);
       setIsAdmin(tokenResult.claims.admin === true);
+      setIsSuperAdmin(tokenResult.claims.admin === true && tokenResult.claims.superAdmin === true);
       setLoading(false);
     });
     return unsub;
@@ -36,7 +39,7 @@ export function AuthProvider({ children }) {
     await firebaseSignOut(auth);
   }
 
-  const value = { user, isAdmin, household, loading, signOut: signOutUser };
+  const value = { user, isAdmin, isSuperAdmin, household, loading, signOut: signOutUser };
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

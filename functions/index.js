@@ -5,6 +5,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { setGlobalOptions } from 'firebase-functions/v2';
 import bcrypt from 'bcryptjs';
 import { buildDraw } from './draw.js';
+import { addAdminUser, assertSuperAdmin, listAdminUsers, removeAdminUser } from './admins.js';
 
 initializeApp();
 const db = getFirestore();
@@ -515,4 +516,40 @@ export const getDrawReplay = onCall(async (request) => {
     entriesHash: d.entriesHash,
     resultHash: d.resultHash,
   };
+});
+
+// ── 관리자 계정 관리 (최고관리자 전용) ────────────────────────────────────
+// 누가 관리자를 추가/해제했는지 남깁니다. (adminAudit 컬렉션은 규칙상 클라이언트 접근 불가, 서버만 기록)
+async function logAdminAudit(action, request, target) {
+  try {
+    await db.collection('adminAudit').add({
+      action,
+      byUid: request.auth.uid,
+      byEmail: request.auth.token.email || null,
+      targetUid: target.uid,
+      targetEmail: target.email || null,
+      at: FieldValue.serverTimestamp(),
+    });
+  } catch (err) {
+    console.error('adminAudit 기록 실패', err);
+  }
+}
+
+export const listAdmins = onCall(async (request) => {
+  assertSuperAdmin(request);
+  return { admins: await listAdminUsers(auth) };
+});
+
+export const addAdmin = onCall(async (request) => {
+  assertSuperAdmin(request);
+  const result = await addAdminUser(auth, request.data?.email);
+  await logAdminAudit('add', request, result);
+  return result;
+});
+
+export const removeAdmin = onCall(async (request) => {
+  assertSuperAdmin(request);
+  const result = await removeAdminUser(auth, request.data?.uid, request.auth.uid);
+  await logAdminAudit('remove', request, result);
+  return result;
 });

@@ -6,6 +6,8 @@
 //   1. Firebase 콘솔 > 프로젝트 설정 > 서비스 계정 > "새 비공개 키 생성" 으로
 //      service-account.json 을 내려받아 scripts/ 폴더에 둡니다. (git에 커밋 금지!)
 //   2. node scripts/setAdminClaim.js admin@example.com
+//      (최고관리자로 지정할 때는 끝에 --super 를 붙입니다: node scripts/setAdminClaim.js admin@example.com --super)
+//      최고관리자는 앱의 '설정 > 관리자 관리'에서 일반관리자를 추가/해제할 수 있습니다.
 //
 import { createSign } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -13,10 +15,11 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const email = process.argv[2];
+const email = process.argv.slice(2).find((a) => !a.startsWith('--'));
+const isSuper = process.argv.includes('--super');
 
 if (!email) {
-  console.error('사용법: node scripts/setAdminClaim.js <admin-email>');
+  console.error('사용법: node scripts/setAdminClaim.js <admin-email> [--super]');
   process.exit(1);
 }
 
@@ -87,13 +90,13 @@ async function main() {
     {
       method: 'POST',
       headers: authHeaders,
-      body: JSON.stringify({ localId: uid, customAttributes: JSON.stringify({ admin: true }) }),
+      body: JSON.stringify({ localId: uid, customAttributes: JSON.stringify(isSuper ? { admin: true, superAdmin: true } : { admin: true }) }),
     }
   );
   const updateData = await updateRes.json();
   if (!updateRes.ok) throw new Error(`권한 부여 실패: ${JSON.stringify(updateData)}`);
 
-  console.log(`${email} (uid: ${uid}) 계정에 admin 권한을 부여했습니다.`);
+  console.log(`${email} (uid: ${uid}) 계정에 ${isSuper ? '최고관리자' : '관리자'} 권한을 부여했습니다.`);
   console.log('해당 계정으로 다시 로그인해야 권한이 적용됩니다.');
 }
 

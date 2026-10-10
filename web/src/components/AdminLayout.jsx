@@ -4,7 +4,7 @@ import { IconBuilding, IconCalendar, IconCheckSquare, IconLogout, IconSettings }
 
 // 관리자 화면 공통 틀: 위쪽 네이비 헤더 + 아래쪽 탭바(휴대폰) / 헤더 아래 메뉴줄(PC)
 export default function AdminLayout() {
-  const { user, signOut } = useAuth();
+  const { user, isSuperAdmin, signOut } = useAuth();
   const navigate = useNavigate();
 
   async function handleSignOut() {
@@ -45,7 +45,7 @@ export default function AdminLayout() {
           <IconBuilding size={24} />
           <span>동호수</span>
         </NavLink>
-        <NavLink to="/admin/settings" className="tab-item tab-item-settings">
+        <NavLink to="/admin/settings" className={`tab-item tab-item-settings${isSuperAdmin ? ' tab-item-keep' : ''}`}>
           <IconSettings size={24} />
           <span>설정</span>
         </NavLink>
