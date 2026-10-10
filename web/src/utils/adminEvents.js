@@ -50,3 +50,14 @@ export function daysUntilClose(event, now = new Date()) {
   if (!end) return null;
   return Math.max(0, Math.ceil((end - now) / 86400000));
 }
+
+// 입주민 화면에서 숨겨진 행사인지, 숨긴 지 며칠째인지
+export function isHidden(event) {
+  return event.hidden === true;
+}
+
+export function hiddenDays(event, now = new Date()) {
+  const at = toDate(event.hiddenAt);
+  if (!at) return null;
+  return Math.max(0, Math.floor((now - at) / 86400000));
+}

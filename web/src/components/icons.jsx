@@ -186,3 +186,20 @@ export function IconLogout({ size = 20 }) {
     </Svg>
   );
 }
+
+export function IconEye({ size = 22 }) {
+  return (
+    <Svg size={size}>
+      <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" />
+      <circle cx="12" cy="12" r="3" />
+    </Svg>
+  );
+}
+
+export function IconEyeOff({ size = 22 }) {
+  return (
+    <Svg size={size}>
+      <path d="M17.94 17.94A10.9 10.9 0 0112 19c-7 0-11-7-11-7a19.8 19.8 0 015.06-5.94M9.9 5.24A10.4 10.4 0 0112 5c7 0 11 7 11 7a19.9 19.9 0 01-3.17 4.19M14.12 14.12a3 3 0 11-4.24-4.24M1 1l22 22" />
+    </Svg>
+  );
+}

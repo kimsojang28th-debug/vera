@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { IconLogout, IconUser } from '../../components/icons';
 import AdminAccounts from './AdminAccounts';
+import AdminDataCleanup from './AdminDataCleanup';
 
 // 모바일에서 상단에서 뺀 계정 정보와 로그아웃을 모아 둔 화면
 export default function AdminSettings() {
@@ -32,6 +33,8 @@ export default function AdminSettings() {
       </section>
 
       {isSuperAdmin && <AdminAccounts />}
+
+      <AdminDataCleanup />
     </div>
   );
 }

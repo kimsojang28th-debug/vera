@@ -1,11 +1,13 @@
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
+import { getStorage } from 'firebase-admin/storage';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { setGlobalOptions } from 'firebase-functions/v2';
 import bcrypt from 'bcryptjs';
 import { buildDraw } from './draw.js';
 import { addAdminUser, assertSuperAdmin, listAdminUsers, removeAdminUser } from './admins.js';
+import { cleanupOrphans, deleteEventData, resetHouseholdPasswords as resetPasswords } from './housekeeping.js';
 
 initializeApp();
 const db = getFirestore();
@@ -128,7 +130,7 @@ export const applyToEvent = onCall(async (request) => {
   const isSamePerson = (d) => (d.residentName || '').trim() === nameNorm && (d.phone || '').trim() === phoneNorm;
 
   const eventSnapPre = await db.doc(`events/${eventId}`).get();
-  if (!eventSnapPre.exists) throw new HttpsError('not-found', '존재하지 않는 행사입니다.');
+  if (!eventSnapPre.exists || eventSnapPre.data().hidden === true) throw new HttpsError('not-found', '존재하지 않는 행사입니다.');
   const eventPre = eventSnapPre.data();
   const multiPerHousehold = eventPre.multiPerHousehold === true;
 
@@ -173,6 +175,7 @@ export const applyToEvent = onCall(async (request) => {
     const eventSnap = await tx.get(eventRef);
     if (!eventSnap.exists) throw new HttpsError('not-found', '존재하지 않는 행사입니다.');
     const event = eventSnap.data();
+    if (event.hidden === true) throw new HttpsError('not-found', '존재하지 않는 행사입니다.');
 
     const now = new Date();
     const applyStart = event.applyStart?.toDate?.() ?? new Date(event.applyStart);
@@ -225,6 +228,12 @@ export const cancelApplication = onCall(async (request) => {
 
     if (!isAdmin && app.householdId !== uid) {
       throw new HttpsError('permission-denied', '본인 세대의 신청만 취소할 수 있습니다.');
+    }
+    if (!isAdmin) {
+      const evCheck = await tx.get(db.doc(`events/${app.eventId}`));
+      if (evCheck.exists && evCheck.data().hidden === true) {
+        throw new HttpsError('not-found', '신청 내역을 찾을 수 없습니다.');
+      }
     }
     if (app.status === 'cancelled') return;
 
@@ -317,6 +326,10 @@ export const updateApplication = onCall(async (request) => {
   if (app.status === 'cancelled') {
     throw new HttpsError('failed-precondition', '취소된 신청은 수정할 수 없습니다.');
   }
+  const evCheck = await db.doc(`events/${app.eventId}`).get();
+  if (evCheck.exists && evCheck.data().hidden === true) {
+    throw new HttpsError('not-found', '신청 내역을 찾을 수 없습니다.');
+  }
 
   await appRef.update({ answers: answers || {}, updatedAt: FieldValue.serverTimestamp() });
   return { ok: true };
@@ -341,8 +354,13 @@ export const getApplicationStatus = onCall(async (request) => {
     db.collection('applications').where('eventId', '==', eventId).get(),
     db.doc(`events/${eventId}`).get(),
   ]);
+  const isAdminCaller = request.auth.token?.admin === true;
+  // 삭제되었거나 숨김 처리된 행사의 현황은 입주민에게 내려주지 않습니다.
+  if (!eventSnap.exists || (eventSnap.data().hidden === true && !isAdminCaller)) {
+    throw new HttpsError('not-found', '볼 수 없는 행사입니다.');
+  }
   const all = appsSnap.docs.map((d) => d.data()).sort(byAppliedAt);
-  const event = eventSnap.exists ? eventSnap.data() : {};
+  const event = eventSnap.data();
   const drawn = event.selectionMethod === 'lottery' && event.drawStatus === 'done';
 
   // 신청순으로 정렬 후 1번부터 번호를 매겨, 몇 번째로 신청했는지 한눈에 볼 수 있게 합니다.
@@ -498,7 +516,10 @@ export const getDrawReplay = onCall(async (request) => {
   const { eventId } = request.data || {};
   if (!eventId) throw new HttpsError('invalid-argument', '행사 정보가 없습니다.');
 
-  const snap = await db.doc(`draws/${eventId}`).get();
+  const [snap, evSnap] = await Promise.all([db.doc(`draws/${eventId}`).get(), db.doc(`events/${eventId}`).get()]);
+  if (!evSnap.exists || (evSnap.data().hidden === true && request.auth.token?.admin !== true)) {
+    throw new HttpsError('not-found', '볼 수 없는 행사입니다.');
+  }
   if (!snap.exists) throw new HttpsError('not-found', '아직 추첨 결과가 없습니다.');
   const d = snap.data();
 
@@ -551,5 +572,59 @@ export const removeAdmin = onCall(async (request) => {
   assertSuperAdmin(request);
   const result = await removeAdminUser(auth, request.data?.uid, request.auth.uid);
   await logAdminAudit('remove', request, result);
+  return result;
+});
+
+// ── 관리자 업무 함수: 행사 삭제 · 남은 데이터 정리 · 비밀번호 일괄 초기화 ──────────
+function assertAdmin(request) {
+  if (!request.auth) throw new HttpsError('unauthenticated', '로그인이 필요합니다.');
+  if (request.auth.token?.admin !== true) throw new HttpsError('permission-denied', '관리자만 사용할 수 있습니다.');
+}
+
+// 개인정보가 들어가지 않는 요약만 남깁니다.
+async function logAudit(action, request, detail) {
+  try {
+    await db.collection('adminAudit').add({
+      action,
+      byUid: request.auth.uid,
+      byEmail: request.auth.token.email || null,
+      detail,
+      at: FieldValue.serverTimestamp(),
+    });
+  } catch (err) {
+    console.error('adminAudit 기록 실패', err);
+  }
+}
+
+// 숨김 상태인 행사만 삭제합니다. (신청 내역, 추첨 기록, 배너 이미지까지 모두 삭제)
+export const deleteEvent = onCall({ timeoutSeconds: 300 }, async (request) => {
+  assertAdmin(request);
+  const eventId = request.data?.eventId;
+  let bucket = null;
+  try {
+    bucket = getStorage().bucket();
+  } catch (err) {
+    console.error('Storage 버킷을 열지 못했습니다(배너 이미지는 남을 수 있음)', err);
+  }
+  const result = await deleteEventData(db, bucket, eventId);
+  await logAudit('deleteEvent', request, { eventId, title: result.title, applications: result.applications, bannerDeleted: result.bannerDeleted });
+  return result;
+});
+
+// 행사는 없는데 남아 있는 신청 내역/추첨 기록 정리. dryRun이면 개수만 알려 줍니다.
+export const cleanupOrphanData = onCall({ timeoutSeconds: 300 }, async (request) => {
+  assertAdmin(request);
+  const dryRun = request.data?.dryRun !== false;
+  const result = await cleanupOrphans(db, { dryRun });
+  if (!dryRun) await logAudit('cleanupOrphans', request, result);
+  return result;
+});
+
+// 입주민 비밀번호 초기화. { all: true } 이면 등록된 전체, { ids: [...] } 이면 선택한 세대만.
+export const resetHouseholdPasswords = onCall({ timeoutSeconds: 120 }, async (request) => {
+  assertAdmin(request);
+  const { ids, all } = request.data || {};
+  const result = await resetPasswords(db, FieldValue, { ids, all: all === true });
+  await logAudit('resetHouseholdPasswords', request, { scope: all === true ? 'all' : 'selected', ...result });
   return result;
 });

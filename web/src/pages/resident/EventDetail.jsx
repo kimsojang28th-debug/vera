@@ -38,7 +38,8 @@ export default function EventDetail() {
 
   const loadEvent = useCallback(async () => {
     const snap = await getDoc(doc(db, 'events', eventId));
-    if (snap.exists()) setEvent({ id: snap.id, ...snap.data() });
+    // 관리자가 숨긴 행사는 주소를 직접 입력해도 없는 행사처럼 보여 줍니다.
+    if (snap.exists() && snap.data().hidden !== true) setEvent({ id: snap.id, ...snap.data() });
   }, [eventId]);
 
   const loadStatusList = useCallback(async () => {

@@ -756,7 +756,6 @@ fieldset.field-group legend { font-size: 15px; font-weight: 700; margin-bottom: 
   .admin-shell .res-header { padding: 0 40px; min-height: 72px; }
   .admin-shell .admin-header-account { display: flex; }
   .admin-shell .tab-bar { order: 1; position: static; box-shadow: none; padding: 0 40px; justify-content: flex-start; border-top: none; border-bottom: 1px solid var(--color-border); }
-  .admin-shell .tab-item-settings:not(.tab-item-keep) { display: none; }
   .admin-shell .admin-page { order: 2; max-width: 1180px; padding: 24px 40px 60px; }
   .admin-page .page-title { font-size: 1.6rem; }
   .today-tiles { gap: 14px; }
@@ -806,3 +805,28 @@ fieldset.field-group legend { font-size: 15px; font-weight: 700; margin-bottom: 
   .admin-account-row { flex-direction: row; align-items: center; justify-content: space-between; }
   .admin-accounts { max-width: 720px; }
 }
+
+/* =====================================================================
+   숨김 · 삭제 확인창 · 비밀번호 일괄 초기화
+   ===================================================================== */
+.admin-event-card-badges { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-width: 0; }
+.badge-hidden { background: #E4E0D2; color: #4A4637; }
+.admin-event-card-hidden { border-style: dashed; background: #FBF8EF; }
+.admin-event-card-hidden .admin-event-title { color: var(--color-muted); }
+.sheet-item:disabled, .sheet-item[aria-disabled='true'] { opacity: 0.45; cursor: not-allowed; }
+.confirm-sheet { max-height: 88vh; overflow-y: auto; }
+.confirm-body { font-size: 15px; line-height: 1.6; color: var(--color-text); }
+.confirm-body p { margin: 0 0 10px; }
+.confirm-links a { color: var(--color-primary); font-weight: 700; text-decoration: underline; }
+.confirm-type { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 8px; font-size: 14px; color: var(--color-muted); }
+.confirm-type-text { padding: 8px 10px; border-radius: 10px; background: #F8D9D6; color: #7A2A24; font-size: 15px; word-break: break-all; user-select: all; }
+.confirm-type input { min-height: 48px; box-sizing: border-box; }
+.confirm-go { min-height: 52px; border-radius: 14px; font-size: 16px; margin-top: 4px; }
+.confirm-go-danger { background: #A73B33; border-color: #A73B33; color: #FFFFFF; }
+.confirm-go-danger:hover { background: #8E2F28; border-color: #8E2F28; }
+.confirm-go:disabled { opacity: 0.45; }
+.toolbar-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.data-cleanup { margin-top: 28px; }
+.data-cleanup .detail-card p { margin: 0 0 12px; font-size: 15px; line-height: 1.5; }
+.cleanup-found { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--color-border); }
+.btn.confirm-go-danger { color: #FFFFFF; }

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { collection, deleteDoc, doc, getDoc, onSnapshot, query, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
-import { db } from '../../firebase';
+import { httpsCallable } from 'firebase/functions';
+import { db, functions } from '../../firebase';
+import ConfirmSheet from '../../components/ConfirmSheet';
 
 // 입력값 뒤에 "동"/"호"/"호수"가 붙어 있어도(예: "201동", "1001호") 숫자만 남기고 정리합니다.
 function normalizeUnit(raw) {
@@ -41,6 +43,9 @@ export default function AdminHouseholds() {
   const [filterDong, setFilterDong] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterName, setFilterName] = useState('');
+  const [resetDialog, setResetDialog] = useState(null); // null | 'selected' | 'all'
+  const [resetBusy, setResetBusy] = useState(false);
+  const [resetError, setResetError] = useState('');
 
   useEffect(() => {
     // 동/호수 정렬은 숫자 크기순으로 화면에서 다시 정리하므로, 조회는 정렬 없이 가져옵니다.
@@ -154,6 +159,27 @@ export default function AdminHouseholds() {
     });
   }
 
+  const registeredCount = households.filter((h) => h.isRegistered).length;
+  const selectedRegisteredCount = households.filter((h) => selectedIds.has(h.id) && h.isRegistered).length;
+
+  async function handleResetConfirm() {
+    setResetBusy(true);
+    setResetError('');
+    try {
+      const run = httpsCallable(functions, 'resetHouseholdPasswords');
+      const res = await run(resetDialog === 'all' ? { all: true } : { ids: Array.from(selectedIds) });
+      const { reset, skipped } = res.data;
+      setError('');
+      setMessage(`${reset}세대의 비밀번호를 초기화했습니다.${skipped > 0 ? ` (이미 미등록 상태인 ${skipped}세대는 제외)` : ''} 입주민은 다음 접속 때 새 비밀번호를 정하게 됩니다.`);
+      if (resetDialog === 'selected') setSelectedIds(new Set());
+      setResetDialog(null);
+    } catch (err) {
+      setResetError(err.message?.replace(/^\S+:\s*/, '') || '초기화하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+    } finally {
+      setResetBusy(false);
+    }
+  }
+
   async function handleDelete(id) {
     if (!window.confirm('세대를 목록에서 삭제하시겠습니까? (이사 등으로 더 이상 유효하지 않은 경우)')) return;
     await deleteDoc(doc(db, 'households', id));
@@ -253,9 +279,17 @@ export default function AdminHouseholds() {
           {households.length > 0 && (
             <div className="admin-toolbar">
               <p className="muted">전체 {households.length}건 중 {visibleHouseholds.length}건 표시</p>
-              <button className="btn btn-danger" onClick={handleBulkDelete} disabled={selectedIds.size === 0}>
-                선택 삭제 ({selectedIds.size}건)
-              </button>
+              <div className="toolbar-actions">
+                <button className="btn" onClick={() => { setResetError(''); setResetDialog('selected'); }} disabled={selectedRegisteredCount === 0}>
+                  선택 비번 초기화 ({selectedRegisteredCount}건)
+                </button>
+                <button className="btn" onClick={() => { setResetError(''); setResetDialog('all'); }} disabled={registeredCount === 0}>
+                  전체 비번 초기화 ({registeredCount}세대)
+                </button>
+                <button className="btn btn-danger" onClick={handleBulkDelete} disabled={selectedIds.size === 0}>
+                  선택 삭제 ({selectedIds.size}건)
+                </button>
+              </div>
             </div>
           )}
 
@@ -296,6 +330,25 @@ export default function AdminHouseholds() {
             </table>
           )}
         </>
+      )}
+
+      {resetDialog && (
+        <ConfirmSheet
+          eyebrow="비밀번호 일괄 초기화"
+          title={resetDialog === 'all' ? `등록된 ${registeredCount}세대 전체` : `선택한 ${selectedRegisteredCount}세대`}
+          confirmLabel="비밀번호 초기화"
+          requireText={resetDialog === 'all' ? '전체 초기화' : ''}
+          busy={resetBusy}
+          error={resetError}
+          onConfirm={handleResetConfirm}
+          onCancel={() => setResetDialog(null)}
+        >
+          <p>초기화하면 입주민은 <strong>다음 접속 때 숫자 4자리 비밀번호를 새로 정해야</strong> 합니다. 신청 내역은 그대로 유지됩니다.</p>
+          <p>
+            초기화 직후에는 그 세대에서 <strong>먼저 접속한 사람이 비밀번호를 정하게 됩니다.</strong>{' '}
+            입주민에게 안내문을 보내기 직전에 실행하시길 권합니다.
+          </p>
+        </ConfirmSheet>
       )}
     </div>
   );

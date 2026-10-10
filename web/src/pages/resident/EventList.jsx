@@ -14,7 +14,7 @@ export default function EventList() {
       setEvents(
         snap.docs
           .map((d) => ({ id: d.id, ...d.data() }))
-          .filter((e) => e.status !== 'draft')
+          .filter((e) => e.status !== 'draft' && e.hidden !== true) // 관리자가 숨긴 행사는 보이지 않습니다
       );
       setLoading(false);
     });

@@ -24,9 +24,11 @@ service cloud.firestore {
     }
 
     // 행사 배너. 로그인한 입주민/관리자 누구나 조회 가능, 수정은 관리자만.
+    // 행사 삭제는 신청 내역·추첨 기록까지 함께 지우는 deleteEvent 함수(Admin SDK)로만 처리합니다.
     match /events/{eventId} {
       allow read: if isSignedIn();
-      allow write: if isAdmin();
+      allow create, update: if isAdmin();
+      allow delete: if false;
     }
 
     // 신청 내역. 본인 세대 신청만 조회 가능(마스킹된 전체 현황은
