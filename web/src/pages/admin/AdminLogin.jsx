@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { GoogleAuthProvider, sendPasswordResetEmail, signInWithEmailAndPassword, signInWithPopup, signOut } from 'firebase/auth';
 import { auth } from '../../firebase';
 
@@ -18,10 +18,13 @@ const RESET_NOTICE = '관리자로 등록된 이메일이면 비밀번호 설정
 
 export default function AdminLogin() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
+  const [notice, setNotice] = useState(
+    location.state?.passwordChanged ? '비밀번호를 바꿨습니다. 새 비밀번호로 로그인해 주세요.' : ''
+  );
   const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit(e) {
@@ -32,6 +35,11 @@ export default function AdminLogin() {
     try {
       const cred = await signInWithEmailAndPassword(auth, email, password);
       const tokenResult = await cred.user.getIdTokenResult();
+      if (tokenResult.claims.pendingAdmin === true) {
+        // 임시 비밀번호로 처음 들어온 경우: 새 비밀번호를 정해야 관리자 화면을 쓸 수 있습니다.
+        navigate('/admin/change-password');
+        return;
+      }
       if (tokenResult.claims.admin !== true) {
         await signOut(auth);
         setError('관리자 권한이 없는 계정입니다.');
@@ -55,6 +63,12 @@ export default function AdminLogin() {
       const cred = await signInWithPopup(auth, provider);
       // 방금 추가된 관리자도 바로 들어올 수 있도록 최신 권한을 다시 받아 확인합니다.
       const tokenResult = await cred.user.getIdTokenResult(true);
+      if (tokenResult.claims.pendingAdmin === true) {
+        // 임시 비밀번호를 받은 계정은 지우면 안 됩니다. 임시 비밀번호 로그인을 먼저 안내합니다.
+        await signOut(auth);
+        setError('이 계정은 임시 비밀번호로 먼저 로그인해 새 비밀번호를 정해야 합니다. 위 이메일·비밀번호 칸에 입력해 주세요. 안 되면 최고관리자에게 비밀번호 초기화를 요청해 주세요.');
+        return;
+      }
       if (tokenResult.claims.admin !== true) {
         // 관리자가 아닌 구글 계정이 앱에 남지 않도록 방금 만들어진 계정을 바로 정리합니다.
         try {

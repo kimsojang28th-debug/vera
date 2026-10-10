@@ -6,7 +6,14 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { setGlobalOptions } from 'firebase-functions/v2';
 import bcrypt from 'bcryptjs';
 import { buildDraw } from './draw.js';
-import { addAdminUser, assertSuperAdmin, listAdminUsers, removeAdminUser } from './admins.js';
+import {
+  addAdminUser,
+  assertSuperAdmin,
+  completeTempPasswordChange,
+  listAdminUsers,
+  removeAdminUser,
+  resetAdminTempPassword,
+} from './admins.js';
 import { cleanupOrphans, deleteEventData, resetHouseholdPasswords as resetPasswords } from './housekeeping.js';
 
 initializeApp();
@@ -561,18 +568,49 @@ export const listAdmins = onCall(async (request) => {
   return { admins: await listAdminUsers(auth) };
 });
 
+// 임시 비밀번호의 해시는 서버만 읽고 쓰는 adminTemp 컬렉션에 둡니다. (규칙상 클라이언트 접근 불가)
+const tempStore = {
+  async save(uid, hash, tempUntil) {
+    await db.doc(`adminTemp/${uid}`).set({ hash, tempUntil, createdAt: FieldValue.serverTimestamp() });
+  },
+  async get(uid) {
+    const snap = await db.doc(`adminTemp/${uid}`).get();
+    return snap.exists ? snap.data() : null;
+  },
+  async delete(uid) {
+    await db.doc(`adminTemp/${uid}`).delete();
+  },
+};
+
+// 비밀번호가 담긴 결과는 화면에만 한 번 돌려주고, 감사 기록에는 남기지 않습니다.
 export const addAdmin = onCall(async (request) => {
   assertSuperAdmin(request);
-  const result = await addAdminUser(auth, request.data?.email);
-  await logAdminAudit('add', request, result);
+  const mode = request.data?.mode ?? 'temp';
+  const result = await addAdminUser(auth, tempStore, request.data?.email, mode);
+  await logAdminAudit(mode === 'google' ? 'add-google' : 'add-temp', request, result);
+  return result;
+});
+
+export const resetAdminPassword = onCall(async (request) => {
+  assertSuperAdmin(request);
+  const result = await resetAdminTempPassword(auth, tempStore, request.data?.uid, request.auth.uid);
+  await logAdminAudit('reset-password', request, result);
   return result;
 });
 
 export const removeAdmin = onCall(async (request) => {
   assertSuperAdmin(request);
-  const result = await removeAdminUser(auth, request.data?.uid, request.auth.uid);
+  const result = await removeAdminUser(auth, request.data?.uid, request.auth.uid, tempStore);
   await logAdminAudit('remove', request, result);
   return result;
+});
+
+// 임시 비밀번호로 로그인한 본인이 새 비밀번호를 정합니다. (이때 비로소 관리자 권한이 켜짐)
+export const completePasswordChange = onCall(async (request) => {
+  if (!request.auth) throw new HttpsError('unauthenticated', '로그인이 필요합니다.');
+  const result = await completeTempPasswordChange(auth, tempStore, request.auth.uid, request.data?.newPassword);
+  await logAdminAudit('password-changed', request, result);
+  return { ok: true };
 });
 
 // ── 관리자 업무 함수: 행사 삭제 · 남은 데이터 정리 · 비밀번호 일괄 초기화 ──────────

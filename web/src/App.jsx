@@ -13,6 +13,7 @@ import DrawReplay from './pages/resident/DrawReplay';
 import DrawReport from './pages/resident/DrawReport';
 
 import AdminLogin from './pages/admin/AdminLogin';
+import AdminChangePassword from './pages/admin/AdminChangePassword';
 import AdminEvents from './pages/admin/AdminEvents';
 import AdminEventForm from './pages/admin/AdminEventForm';
 import AdminApplications from './pages/admin/AdminApplications';
@@ -28,6 +29,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Login />} />
           <Route path="/admin/login" element={<AdminLogin />} />
+          <Route path="/admin/change-password" element={<AdminChangePassword />} />
 
           <Route
             element={

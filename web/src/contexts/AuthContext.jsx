@@ -10,6 +10,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false); // 최고관리자: 관리자 추가/해제 가능
+  const [isPendingAdmin, setIsPendingAdmin] = useState(false); // 임시 비밀번호 상태: 새 비밀번호로 바꾸기 전까지 관리자 권한 없음
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -18,6 +19,7 @@ export function AuthProvider({ children }) {
         setUser(null);
         setIsAdmin(false);
         setIsSuperAdmin(false);
+        setIsPendingAdmin(false);
         setLoading(false);
         return;
       }
@@ -25,6 +27,7 @@ export function AuthProvider({ children }) {
       setUser(u);
       setIsAdmin(tokenResult.claims.admin === true);
       setIsSuperAdmin(tokenResult.claims.admin === true && tokenResult.claims.superAdmin === true);
+      setIsPendingAdmin(tokenResult.claims.pendingAdmin === true);
       setLoading(false);
     });
     return unsub;
@@ -39,7 +42,7 @@ export function AuthProvider({ children }) {
     await firebaseSignOut(auth);
   }
 
-  const value = { user, isAdmin, isSuperAdmin, household, loading, signOut: signOutUser };
+  const value = { user, isAdmin, isSuperAdmin, isPendingAdmin, household, loading, signOut: signOutUser };
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
